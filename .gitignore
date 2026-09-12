@@ -5,6 +5,7 @@ apps/mobile/node_modules/
 backend/.venv/
 backend/.env
 backend/*.db
+kisansetu.db
 backend/__pycache__/
 **/__pycache__/
 *.py[cod]
