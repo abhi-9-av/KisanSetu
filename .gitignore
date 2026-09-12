@@ -1,0 +1,10 @@
+node_modules/
+.expo/
+apps/mobile/.expo/
+apps/mobile/node_modules/
+backend/.venv/
+backend/.env
+backend/*.db
+backend/__pycache__/
+**/__pycache__/
+*.py[cod]
