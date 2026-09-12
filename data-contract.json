@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "KrishiPragatiDataContract",
+  "description": "Enforced Data Contract for KrishiPragati (SIH 2026 PS 26032) across React Native Frontend, Streamlit Dashboard, and FastAPI Backend",
+  "type": "object",
+  "properties": {
+    "booking_id": { "type": "string", "example": "BKG-1001" },
+    "farmer_id": { "type": "string", "example": "F-502" },
+    "farmer_name": { "type": "string", "example": "Ramesh Kumar" },
+    "phone": { "type": "string", "example": "9876543210" },
+    "centre_id": { "type": "string", "example": "C-07" },
+    "centre_name": { "type": "string", "example": "Hoshangabad Main Mandi" },
+    "crop_type": { "type": "string", "example": "Wheat" },
+    "quantity_quintals": { "type": "number", "example": 45.5 },
+    "slot": {
+      "type": "object",
+      "properties": {
+        "date": { "type": "string", "format": "date", "example": "2026-09-15" },
+        "start_time": { "type": "string", "example": "09:00" },
+        "end_time": { "type": "string", "example": "10:00" }
+      },
+      "required": ["date", "start_time", "end_time"]
+    },
+    "token": {
+      "type": "object",
+      "properties": {
+        "token_number": { "type": "string", "example": "T-018" },
+        "issued_at": { "type": "string", "format": "date-time" },
+        "status": {
+          "type": "string",
+          "enum": ["BOOKED", "ARRIVED", "WAITING", "PROCESSING", "COMPLETED", "CANCELLED"],
+          "example": "WAITING"
+        }
+      },
+      "required": ["token_number", "status"]
+    },
+    "queue_info": {
+      "type": "object",
+      "properties": {
+        "vehicles_ahead": { "type": "integer", "example": 6 },
+        "estimated_wait_min": { "type": "integer", "example": 42 },
+        "last_updated": { "type": "string", "format": "date-time" }
+      },
+      "required": ["vehicles_ahead", "estimated_wait_min"]
+    },
+    "procurement": {
+      "type": "object",
+      "properties": {
+        "weighment_kg": { "type": ["number", "null"], "example": 4550.0 },
+        "accepted_status": { "type": "string", "enum": ["PENDING", "APPROVED", "REJECTED"] },
+        "completed_at": { "type": ["string", "null"] }
+      }
+    },
+    "payment": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["NOT_STARTED", "PROCUREMENT_COMPLETED", "PAYMENT_INITIATED", "PROCESSING", "PAID"],
+          "example": "PROCESSING"
+        },
+        "amount_inr": { "type": ["number", "null"], "example": 103512.5 },
+        "days_stalled": { "type": "integer", "example": 8 }
+      },
+      "required": ["status", "days_stalled"]
+    }
+  },
+  "required": ["booking_id", "farmer_id", "centre_id", "crop_type", "slot", "token", "queue_info", "payment"]
+}
