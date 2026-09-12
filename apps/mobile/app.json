@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "KisanSetu",
+    "slug": "kisansetu",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "kisansetu",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": true,
+    "plugins": [
+      "expo-router"
+    ],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#e6f5ea"
+      }
+    },
+    "web": {
+      "bundler": "metro"
+    }
+  }
+}
