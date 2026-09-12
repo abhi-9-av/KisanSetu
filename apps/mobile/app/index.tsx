@@ -1,620 +1,95 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
+  Pressable,
   SafeAreaView,
   ScrollView,
   StatusBar,
   Text,
-  TouchableOpacity,
+  TextInput,
   View,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 
-type TokenStatus =
-  | 'BOOKED'
-  | 'ARRIVED'
-  | 'WAITING'
-  | 'PROCESSING'
-  | 'COMPLETED'
-  | 'CANCELLED';
-
-type PaymentStatus =
-  | 'NOT_STARTED'
-  | 'PROCUREMENT_COMPLETED'
-  | 'PAYMENT_INITIATED'
-  | 'PROCESSING'
-  | 'PAID';
-
+type TokenStatus = 'BOOKED' | 'ARRIVED' | 'WAITING' | 'PROCESSING' | 'COMPLETED' | 'CANCELLED';
+type PaymentStatus = 'NOT_STARTED' | 'PROCUREMENT_COMPLETED' | 'PAYMENT_INITIATED' | 'PROCESSING' | 'PAID';
 type AcceptedStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-type Page = 'home' | 'slots' | 'status';
+type Screen = 'home' | 'slots' | 'status' | 'payment' | 'complaints' | 'notifications' | 'profile';
+type AuthScreen = 'login' | 'otp' | 'onboarding' | 'app';
 
-interface Slot {
-  date: string;
-  start_time: string;
-  end_time: string;
-}
-
-interface Token {
-  token_number: string;
-  issued_at: string;
-  status: TokenStatus;
-}
-
-interface QueueInfo {
-  vehicles_ahead: number;
-  estimated_wait_min: number;
-  last_updated: string;
-}
-
-interface Procurement {
-  weighment_kg: number | null;
-  accepted_status: AcceptedStatus;
-  completed_at: string | null;
-}
-
-interface Payment {
-  status: PaymentStatus;
-  amount_inr: number | null;
-  initiated_at: string | null;
-  paid_at: string | null;
-  days_stalled: number;
-}
-
+interface Slot { date: string; start_time: string; end_time: string }
+interface Token { token_number: string; issued_at: string; status: TokenStatus }
+interface QueueInfo { vehicles_ahead: number; estimated_wait_min: number; last_updated: string }
+interface Procurement { weighment_kg: number | null; accepted_status: AcceptedStatus; completed_at: string | null }
+interface Payment { status: PaymentStatus; amount_inr: number | null; initiated_at: string | null; paid_at: string | null; days_stalled: number }
 interface BookingData {
-  booking_id: string;
-  farmer_id: string;
-  farmer_name: string;
-  phone: string;
-  centre_id: string;
-  centre_name: string;
-  crop_type: string;
-  quantity_quintals: number;
-  slot: Slot;
-  token: Token;
-  queue_info: QueueInfo;
-  procurement: Procurement;
-  payment: Payment;
+  booking_id: string; farmer_id: string; farmer_name: string; phone: string; centre_id: string; centre_name: string;
+  crop_type: string; quantity_quintals: number; slot: Slot; token: Token; queue_info: QueueInfo;
+  procurement: Procurement; payment: Payment;
 }
 
-const colors = {
-  green: '#1f8a3e',
-  greenDark: '#166b30',
-  greenLight: '#e6f5ea',
-  orange: '#e08a2c',
-  background: '#f4f5f4',
-  text: '#1c1f1d',
-  muted: '#6b746e',
-  border: '#eceeec',
-};
-
+const C = { green: '#1f8a3e', dark: '#166b30', pale: '#e6f5ea', orange: '#e08a2c', bg: '#f4f5f4', text: '#1c1f1d', muted: '#6b746e', border: '#e5e9e5' };
 const initialBooking: BookingData = {
-  booking_id: 'BKG-1001',
-  farmer_id: 'F-502',
-  farmer_name: 'Ramesh Kumar',
-  phone: '9876543210',
-  centre_id: 'C-07',
-  centre_name: 'Krishi Upaj Mandi, Indore',
-  crop_type: 'Soybean',
-  quantity_quintals: 2,
-  slot: {
-    date: '2026-05-22',
-    start_time: '10:30',
-    end_time: '11:00',
-  },
-  token: {
-    token_number: 'A-125',
-    issued_at: '2026-05-22T08:02:00+05:30',
-    status: 'WAITING',
-  },
-  queue_info: {
-    vehicles_ahead: 24,
-    estimated_wait_min: 75,
-    last_updated: '2026-05-22T09:30:00+05:30',
-  },
-  procurement: {
-    weighment_kg: 200,
-    accepted_status: 'APPROVED',
-    completed_at: '2026-05-22T10:45:00+05:30',
-  },
-  payment: {
-    status: 'PROCESSING',
-    amount_inr: 5680,
-    initiated_at: '2026-05-22T10:45:00+05:30',
-    paid_at: null,
-    days_stalled: 0,
-  },
+  booking_id: 'BKG-1001', farmer_id: 'F-502', farmer_name: 'Ramesh Kumar', phone: '9876543210',
+  centre_id: 'C-07', centre_name: 'Krishi Upaj Mandi, Indore', crop_type: 'Soybean', quantity_quintals: 2,
+  slot: { date: '2026-09-15', start_time: '10:30', end_time: '11:00' },
+  token: { token_number: 'A-125', issued_at: '2026-09-12T08:02:00+05:30', status: 'WAITING' },
+  queue_info: { vehicles_ahead: 8, estimated_wait_min: 32, last_updated: '2026-09-12T09:30:00+05:30' },
+  procurement: { weighment_kg: 200, accepted_status: 'APPROVED', completed_at: '2026-09-12T10:45:00+05:30' },
+  payment: { status: 'PROCESSING', amount_inr: 5680, initiated_at: '2026-09-12T10:45:00+05:30', paid_at: null, days_stalled: 0 },
 };
 
-const formatDate = (date: string): string =>
-  new Date(`${date}T00:00:00`).toLocaleDateString('en-IN', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  });
+const dateLabel = (value: string) => new Date(`${value}T00:00:00`).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+const timeLabel = (value: string) => { const [h, m] = value.split(':').map(Number); return `${h % 12 || 12}:${String(m).padStart(2, '0')} ${h >= 12 ? 'PM' : 'AM'}`; };
+const waitLabel = (minutes: number) => minutes >= 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}m` : `${minutes}m`;
 
-const formatTime = (time: string): string => {
-  const [hours, minutes] = time.split(':').map(Number);
-  const period = hours >= 12 ? 'PM' : 'AM';
-  const hour = hours % 12 || 12;
-  return `${hour}:${String(minutes).padStart(2, '0')} ${period}`;
-};
-
-const formatWait = (minutes: number): string => {
-  const hours = Math.floor(minutes / 60);
-  const remainingMinutes = minutes % 60;
-  return hours > 0
-    ? `${hours}h ${remainingMinutes}m`
-    : `${remainingMinutes}m`;
-};
-
-export default function FarmerDashboard() {
+export default function FarmerApp() {
+  const [auth, setAuth] = useState<AuthScreen>('login');
+  const [screen, setScreen] = useState<Screen>('home');
+  const [phone, setPhone] = useState('');
+  const [otp, setOtp] = useState('');
   const [booking, setBooking] = useState<BookingData>(initialBooking);
-  const [activePage, setActivePage] = useState<Page>('home');
-  const [selectedDate, setSelectedDate] = useState(initialBooking.slot.date);
-  const [selectedSlot, setSelectedSlot] = useState(
-    `${initialBooking.slot.start_time}-${initialBooking.slot.end_time}`,
-  );
   const [toast, setToast] = useState<string | null>(null);
+  const [profileName, setProfileName] = useState('');
 
+  useEffect(() => { if (!toast) return; const timer = setTimeout(() => setToast(null), 2200); return () => clearTimeout(timer); }, [toast]);
   useEffect(() => {
-    const interval = setInterval(() => {
-      setBooking((current) => {
-        if (current.queue_info.vehicles_ahead === 0) {
-          return current;
-        }
-
-        return {
-          ...current,
-          token: {
-            ...current.token,
-            token_number: `A-${Number(current.token.token_number.slice(2)) + 1}`,
-          },
-          queue_info: {
-            ...current.queue_info,
-            vehicles_ahead: current.queue_info.vehicles_ahead - 1,
-            estimated_wait_min: Math.max(
-              5,
-              current.queue_info.estimated_wait_min - 3,
-            ),
-            last_updated: new Date().toISOString(),
-          },
-        };
-      });
-    }, 10000);
-
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
-    if (!toast) {
-      return;
-    }
-
-    const timeout = setTimeout(() => setToast(null), 1800);
-    return () => clearTimeout(timeout);
-  }, [toast]);
-
-  const progress = useMemo(
-    () =>
-      Math.min(
-        95,
-        38 + (initialBooking.queue_info.vehicles_ahead - booking.queue_info.vehicles_ahead) * 2.5,
-      ),
-    [booking.queue_info.vehicles_ahead],
-  );
-
-  const showToast = (message: string) => setToast(message);
-
-  const confirmSlot = () => {
-    const [startTime, endTime] = selectedSlot.split('-');
-    setBooking((current) => ({
+    if (auth !== 'app') return;
+    const timer = setInterval(() => setBooking((current) => ({
       ...current,
-      slot: {
-        date: selectedDate,
-        start_time: startTime,
-        end_time: endTime,
-      },
-      token: {
-        ...current.token,
-        status: 'BOOKED',
-      },
-    }));
-    showToast(`Slot confirmed! Token ${booking.token.token_number} issued`);
-    setActivePage('home');
-  };
+      queue_info: { ...current.queue_info, vehicles_ahead: Math.max(0, current.queue_info.vehicles_ahead - 1), estimated_wait_min: Math.max(5, current.queue_info.estimated_wait_min - 3), last_updated: new Date().toISOString() },
+    })), 10000);
+    return () => clearInterval(timer);
+  }, [auth]);
+  const notify = (message: string) => setToast(message);
 
-  return (
-    <SafeAreaView className="flex-1 bg-[#0d0f0e]">
-      <StatusBar barStyle="dark-content" backgroundColor={colors.background} />
-      <View className="mx-auto my-0 w-full max-w-[390px] flex-1 overflow-hidden rounded-[42px] bg-[#f4f5f4]">
-        <ScrollView
-          className="flex-1"
-          contentContainerStyle={{ paddingBottom: 106 }}
-          showsVerticalScrollIndicator={false}
-        >
-          <View className="px-5 pt-3">
-            {activePage === 'home' && (
-              <HomePage
-                booking={booking}
-                progress={progress}
-                onAction={showToast}
-                onNavigate={setActivePage}
-              />
-            )}
-            {activePage === 'slots' && (
-              <SlotsPage
-                booking={booking}
-                selectedDate={selectedDate}
-                selectedSlot={selectedSlot}
-                onDateChange={setSelectedDate}
-                onSlotChange={setSelectedSlot}
-                onConfirm={confirmSlot}
-              />
-            )}
-            {activePage === 'status' && <StatusPage booking={booking} />}
-          </View>
-        </ScrollView>
+  if (auth === 'login') return <AuthShell><Text className="mb-2 text-3xl font-extrabold text-[#166b30]">KisanSetu</Text><Text className="mb-8 text-base text-[#6b746e]">Your simple bridge to a better mandi experience.</Text><Text className="mb-2 text-sm font-bold text-[#1c1f1d]">Mobile number</Text><TextInput value={phone} onChangeText={setPhone} keyboardType="phone-pad" maxLength={10} placeholder="Enter 10-digit mobile number" className="mb-4 rounded-2xl border border-[#e5e9e5] bg-white px-4 py-4 text-base" /><PrimaryButton label="Get OTP" onPress={() => phone.length >= 10 ? setAuth('otp') : notify('Enter a valid 10-digit number')} /><Text className="mt-5 text-center text-xs text-[#6b746e]">By continuing, you agree to KisanSetu terms and privacy policy.</Text></AuthShell>;
+  if (auth === 'otp') return <AuthShell><Text className="mb-2 text-3xl font-extrabold text-[#166b30]">Verify number</Text><Text className="mb-8 text-base text-[#6b746e]">We sent a 4-digit OTP to +91 {phone}</Text><TextInput value={otp} onChangeText={setOtp} keyboardType="number-pad" maxLength={4} placeholder="Enter OTP" className="mb-4 rounded-2xl border border-[#e5e9e5] bg-white px-4 py-4 text-center text-2xl tracking-[8px]" /><PrimaryButton label="Verify & continue" onPress={() => otp.length === 4 ? setAuth('onboarding') : notify('Enter the 4-digit OTP')} /><Pressable onPress={() => setAuth('login')}><Text className="mt-5 text-center font-bold text-[#1f8a3e]">Change number</Text></Pressable></AuthShell>;
+  if (auth === 'onboarding') return <AuthShell><Text className="mb-2 text-3xl font-extrabold text-[#166b30]">Tell us about you</Text><Text className="mb-8 text-base text-[#6b746e]">This helps us personalise your mandi journey.</Text><Text className="mb-2 text-sm font-bold">Your name</Text><TextInput value={profileName} onChangeText={setProfileName} placeholder="e.g. Ramesh Kumar" className="mb-4 rounded-2xl border border-[#e5e9e5] bg-white px-4 py-4 text-base" /><Text className="mb-2 text-sm font-bold">Preferred mandi</Text><View className="mb-6 rounded-2xl border border-[#1f8a3e] bg-[#e6f5ea] px-4 py-4"><Text className="font-bold text-[#166b30]">{booking.centre_name}</Text><Text className="mt-1 text-xs text-[#6b746e]">Centre {booking.centre_id} · 3.2 km away</Text></View><PrimaryButton label="Start using KisanSetu" onPress={() => { setBooking({ ...booking, farmer_name: profileName || booking.farmer_name, phone }); setAuth('app'); }} /></AuthShell>;
 
-        {toast && (
-          <View className="absolute bottom-[102px] left-5 right-5 rounded-[14px] bg-[#1c1f1d] px-[18px] py-[13px]">
-            <Text className="text-center text-[13px] font-bold text-white">
-              {toast}
-            </Text>
-          </View>
-        )}
-
-        <BottomNavigation activePage={activePage} onNavigate={setActivePage} />
-      </View>
-    </SafeAreaView>
-  );
+  return <SafeAreaView className="flex-1 bg-[#0d0f0e]"><StatusBar barStyle="dark-content" /><View className="mx-auto w-full max-w-[430px] flex-1 overflow-hidden rounded-[38px] bg-[#f4f5f4]"><ScrollView contentContainerStyle={{ paddingBottom: 105 }} showsVerticalScrollIndicator={false}><View className="px-5 pt-3">{screen === 'home' && <Home booking={booking} navigate={setScreen} notify={notify} />}{screen === 'slots' && <Slots booking={booking} onConfirm={(slot) => { setBooking({ ...booking, slot, token: { ...booking.token, status: 'BOOKED' } }); notify('Slot booked successfully'); setScreen('home'); }} />}{screen === 'status' && <Status booking={booking} />}{screen === 'payment' && <Payment booking={booking} notify={notify} />}{screen === 'complaints' && <Complaints notify={notify} />}{screen === 'notifications' && <Notifications />}{screen === 'profile' && <Profile booking={booking} notify={notify} />}</View></ScrollView>{toast && <View className="absolute bottom-[92px] left-5 right-5 rounded-2xl bg-[#1c1f1d] px-4 py-3"><Text className="text-center font-bold text-white">{toast}</Text></View>}<Nav screen={screen} setScreen={setScreen} /></View></SafeAreaView>;
 }
 
-function Header({ title = 'KisanSetu' }: { title?: string }) {
-  return (
-    <View className="mb-[18px] mt-2 flex-row items-center justify-between">
-      <Text className="text-[26px] font-bold tracking-[-0.5px] text-[#1f8a3e]">
-        {title}
-      </Text>
-      <TouchableOpacity className="relative h-[38px] w-[38px] items-center justify-center">
-        <Text className="text-[22px] text-[#1c1f1d]">♧</Text>
-        <View className="absolute right-[6px] top-[6px] h-2 w-2 rounded-full border-2 border-[#f4f5f4] bg-[#e08a2c]" />
-      </TouchableOpacity>
-    </View>
-  );
+function AuthShell({ children }: { children: React.ReactNode }) { return <SafeAreaView className="flex-1 bg-[#f4f5f4]"><View className="mx-auto w-full max-w-[430px] flex-1 justify-center px-7"><View className="mb-10 h-20 w-20 items-center justify-center rounded-[26px] bg-[#e6f5ea]"><Text className="text-4xl">🌾</Text></View>{children}</View></SafeAreaView>; }
+function PrimaryButton({ label, onPress }: { label: string; onPress: () => void }) { return <Pressable onPress={onPress} className="rounded-2xl bg-[#1f8a3e] px-4 py-4 active:opacity-80"><Text className="text-center text-base font-bold text-white">{label}</Text></Pressable>; }
+function Header({ title = 'KisanSetu', back }: { title?: string; back?: () => void }) { return <View className="mb-5 mt-2 flex-row items-center justify-between">{back ? <Pressable onPress={back} className="mr-3"><Ionicons name="arrow-back" size={25} color={C.text} /></Pressable> : null}<Text className="flex-1 text-[26px] font-extrabold tracking-[-0.5px] text-[#1f8a3e]">{title}</Text><Pressable><Ionicons name="notifications-outline" size={24} color={C.text} /></Pressable></View>; }
+function Card({ children }: { children: React.ReactNode }) { return <View className="mb-4 rounded-[20px] border border-[#e5e9e5] bg-white p-5">{children}</View>; }
+function Home({ booking, navigate, notify }: { booking: BookingData; navigate: (s: Screen) => void; notify: (s: string) => void }) {
+  const progress = Math.min(92, 35 + (24 - booking.queue_info.vehicles_ahead) * 2.5);
+  return <><Header /><View className="mb-5 flex-row items-center justify-between"><View><Text className="text-[21px] font-extrabold">Namaste, {booking.farmer_name.split(' ')[0]} 👋</Text><Text className="mt-1 text-sm text-[#6b746e]">Aaj ka din shubh ho!</Text></View><View className="h-14 w-14 items-center justify-center rounded-full bg-[#e6f5ea]"><Text className="text-2xl">🧑🏽‍🌾</Text></View></View><Card><Text className="mb-3 text-base font-bold">Your Next Mandi Slot</Text><View className="flex-row justify-between"><View className="flex-1 gap-2"><Text>📅 {dateLabel(booking.slot.date)}</Text><Text>🕒 {timeLabel(booking.slot.start_time)} – {timeLabel(booking.slot.end_time)}</Text><Text numberOfLines={1}>📍 {booking.centre_name}</Text></View><View className="rounded-2xl bg-[#e6f5ea] px-3 py-3"><Text className="text-center text-[10px] text-[#6b746e]">ETA</Text><Text className="text-center text-lg font-extrabold text-[#166b30]">{waitLabel(booking.queue_info.estimated_wait_min)}</Text><Text className="text-center text-[10px] text-[#6b746e]">live</Text></View></View></Card><Card><View className="mb-3 flex-row justify-between"><Text className="text-base font-bold">Live queue</Text><Pressable onPress={() => navigate('status')}><Text className="font-bold text-[#1f8a3e]">View details</Text></Pressable></View><View className="mb-3 flex-row justify-between"><View><Text className="text-xs text-[#6b746e]">Your token</Text><Text className="text-3xl font-extrabold text-[#1f8a3e]">{booking.token.token_number}</Text></View><View><Text className="text-right text-xs text-[#6b746e]">Ahead of you</Text><Text className="text-right text-3xl font-extrabold">{booking.queue_info.vehicles_ahead}</Text></View></View><View className="mb-2 h-2 overflow-hidden rounded-full bg-[#e5e9e5]"><View style={{ width: `${progress}%` }} className="h-full rounded-full bg-[#1f8a3e]" /></View><Text className="text-xs text-[#e08a2c]">{booking.queue_info.vehicles_ahead > 10 ? 'Mandi is crowded' : 'Mandi is moving smoothly'} · updates every 10 sec</Text></Card><Card><View className="mb-4 flex-row justify-between"><Text className="text-base font-bold">Procurement progress</Text><Text className="rounded-full bg-[#e6f5ea] px-2 py-1 text-xs font-bold text-[#166b30]">{booking.payment.status === 'PAID' ? 'Paid' : 'In progress'}</Text></View><Text className="mb-3 font-semibold">{booking.crop_type} · {booking.quantity_quintals} quintal</Text><Progress booking={booking} /></Card><View className="mb-4 flex-row gap-2"><Quick icon="calendar-outline" label="Book slot" onPress={() => navigate('slots')} /><Quick icon="chatbox-ellipses-outline" label="Complaint" onPress={() => navigate('complaints')} /><Quick icon="receipt-outline" label="Receipt" onPress={() => navigate('payment')} /><Quick icon="notifications-outline" label="Alerts" onPress={() => navigate('notifications')} /></View><Pressable onPress={() => notify('Help centre will be available shortly')} className="mb-5 flex-row items-center justify-center gap-2"><Ionicons name="help-circle-outline" size={18} color={C.green} /><Text className="font-bold text-[#1f8a3e]">Need help?</Text></Pressable></>;
 }
+function Quick({ icon, label, onPress }: { icon: keyof typeof Ionicons.glyphMap; label: string; onPress: () => void }) { return <Pressable onPress={onPress} className="flex-1 items-center rounded-2xl border border-[#e5e9e5] bg-white px-1 py-3"><Ionicons name={icon} size={22} color={C.green} /><Text className="mt-1 text-center text-[11px] font-bold">{label}</Text></Pressable>; }
+function Progress({ booking }: { booking: BookingData }) { const paid = booking.payment.status === 'PAID'; const steps = [['Gate', true], ['Weighed', booking.procurement.accepted_status === 'APPROVED'], ['Payment', paid], ['Receipt', paid]] as const; return <View className="flex-row">{steps.map(([label, done], i) => <View key={label} className="flex-1 items-center"><View className={`h-8 w-8 items-center justify-center rounded-full ${done ? 'bg-[#1f8a3e]' : 'bg-[#e5e9e5]'}`}><Text className={done ? 'font-bold text-white' : 'text-[#6b746e]'}>{done ? '✓' : i + 1}</Text></View><Text className="mt-1 text-center text-[10px] font-semibold">{label}</Text></View>)}</View>; }
 
-function Card({ children, className = '' }: { children: React.ReactNode; className?: string }) {
-  return (
-    <View className={`mb-4 rounded-[20px] border border-[#eceeec] bg-white p-5 shadow-sm ${className}`}>
-      {children}
-    </View>
-  );
-}
+function Slots({ booking, onConfirm }: { booking: BookingData; onConfirm: (slot: Slot) => void }) { const [date, setDate] = useState(booking.slot.date); const [time, setTime] = useState(`${booking.slot.start_time}-${booking.slot.end_time}`); const dates = ['2026-09-14', '2026-09-15', '2026-09-16', '2026-09-17']; const times = ['08:00-08:30', '09:00-09:30', '10:30-11:00', '11:30-12:00', '13:00-13:30']; return <><Header title="Book a slot" /><Text className="mb-4 mt-[-10px] text-sm text-[#6b746e]">{booking.centre_name}</Text><Card><Text className="mb-3 text-base font-bold">Choose a date</Text><View className="flex-row gap-2">{dates.map((d) => <Pressable key={d} onPress={() => setDate(d)} className={`flex-1 items-center rounded-xl border px-1 py-3 ${date === d ? 'border-[#1f8a3e] bg-[#1f8a3e]' : 'border-[#e5e9e5] bg-[#f4f5f4]'}`}><Text className={date === d ? 'text-xs text-white' : 'text-xs text-[#6b746e]'}>{new Date(`${d}T00:00:00`).toLocaleDateString('en-IN', { weekday: 'short' })}</Text><Text className={date === d ? 'text-lg font-bold text-white' : 'text-lg font-bold'}>{d.slice(-2)}</Text></Pressable>)}</View></Card><Card><Text className="mb-3 text-base font-bold">Available time slots</Text><View className="flex-row flex-wrap gap-2">{times.map((t) => <Pressable key={t} onPress={() => setTime(t)} className={`w-[47%] rounded-xl border px-3 py-3 ${time === t ? 'border-[#1f8a3e] bg-[#1f8a3e]' : 'border-[#e5e9e5] bg-white'}`}><Text className={time === t ? 'font-bold text-white' : 'font-bold'}>{timeLabel(t.split('-')[0])} – {timeLabel(t.split('-')[1])}</Text><Text className={time === t ? 'mt-1 text-xs text-[#e6f5ea]' : 'mt-1 text-xs text-[#6b746e]'}>12 slots left</Text></Pressable>)}</View></Card><Card><Text className="mb-3 text-base font-bold">Your crop details</Text><Row label="Crop" value={booking.crop_type} /><Row label="Quantity" value={`${booking.quantity_quintals} quintal`} /></Card><PrimaryButton label="Confirm slot booking" onPress={() => { const [start_time, end_time] = time.split('-'); onConfirm({ date, start_time, end_time }); }} /></>; }
+function Row({ label, value }: { label: string; value: string }) { return <View className="mb-2 flex-row justify-between"><Text className="text-sm text-[#6b746e]">{label}</Text><Text className="text-sm font-bold">{value}</Text></View>; }
 
-function HomePage({
-  booking,
-  progress,
-  onAction,
-  onNavigate,
-}: {
-  booking: BookingData;
-  progress: number;
-  onAction: (message: string) => void;
-  onNavigate: (page: Page) => void;
-}) {
-  const isCalm = booking.queue_info.vehicles_ahead < 10;
+function Status({ booking }: { booking: BookingData }) { const items = [['Slot booked', `${dateLabel(booking.slot.date)} · ${timeLabel(booking.slot.start_time)}`, true], ['Mandi gate', 'Check-in confirmed', true], ['Weight verified', booking.procurement.weighment_kg ? `${booking.procurement.weighment_kg} kg accepted` : 'Pending', booking.procurement.accepted_status === 'APPROVED'], ['Payment', booking.payment.status === 'PAID' ? 'Paid to your account' : 'Processing', booking.payment.status === 'PAID']] as const; return <><Header title="Live status" /><Text className="mb-4 mt-[-10px] text-sm text-[#6b746e]">Token {booking.token.token_number} · last updated just now</Text><Card>{items.map(([title, sub, done], index) => <View key={title} className="flex-row gap-3"><View className="items-center"><View className={`h-8 w-8 items-center justify-center rounded-full ${done ? 'bg-[#1f8a3e]' : 'bg-[#e5e9e5]'}`}><Text className={done ? 'font-bold text-white' : 'text-[#6b746e]'}>{done ? '✓' : index + 1}</Text></View>{index < items.length - 1 && <View className={`h-12 w-0.5 ${done ? 'bg-[#1f8a3e]' : 'bg-[#e5e9e5]'}`} />}</View><View className="pb-5"><Text className="font-bold">{title}</Text><Text className="mt-1 text-xs text-[#6b746e]">{sub}</Text></View></View>)}</Card><Card><Text className="mb-3 text-base font-bold">Mandi snapshot</Text><View className="flex-row gap-2"><Stat value={String(booking.queue_info.vehicles_ahead)} label="In queue" /><Stat value={waitLabel(booking.queue_info.estimated_wait_min)} label="Est. wait" /><Stat value="₹2,840" label="Avg. price/qtl" /></View></Card></>; }
+function Stat({ value, label }: { value: string; label: string }) { return <View className="flex-1 items-center rounded-xl bg-[#f4f5f4] p-3"><Text className="text-lg font-extrabold text-[#1f8a3e]">{value}</Text><Text className="mt-1 text-center text-[10px] font-bold text-[#6b746e]">{label}</Text></View>; }
 
-  return (
-    <>
-      <Header />
-      <View className="mb-5 flex-row items-center justify-between">
-        <View>
-          <Text className="mb-1 text-[21px] font-bold text-[#1c1f1d]">
-            Namaste, {booking.farmer_name.split(' ')[0]} 👋
-          </Text>
-          <Text className="text-sm text-[#6b746e]">Aaj ka din shubh ho!</Text>
-        </View>
-        <View className="h-14 w-14 items-center justify-center rounded-full bg-[#e6f5ea]">
-          <Text className="text-[26px]">🧑🏽‍🌾</Text>
-        </View>
-      </View>
+function Payment({ booking, notify }: { booking: BookingData; notify: (s: string) => void }) { const paid = booking.payment.status === 'PAID'; return <><Header title="Payment & receipt" /><Card><View className="mb-5 items-center"><View className="mb-3 h-16 w-16 items-center justify-center rounded-full bg-[#e6f5ea]"><Ionicons name={paid ? 'checkmark-circle' : 'time'} size={38} color={C.green} /></View><Text className="text-xl font-extrabold">{paid ? 'Payment received' : 'Payment processing'}</Text><Text className="mt-1 text-sm text-[#6b746e]">{paid ? 'Your money has been credited' : 'We will notify you when it is credited'}</Text></View><Row label="Booking ID" value={booking.booking_id} /><Row label="Crop weighed" value={`${booking.procurement.weighment_kg ?? '—'} kg`} /><Row label="Amount" value={booking.payment.amount_inr ? `₹${booking.payment.amount_inr.toLocaleString('en-IN')}` : '—'} /><Row label="Payment status" value={booking.payment.status.replaceAll('_', ' ')} /></Card><Pressable onPress={() => notify(paid ? 'Receipt downloaded' : 'Receipt will be ready after payment')} className="mb-3 rounded-2xl border border-[#1f8a3e] bg-white px-4 py-4"><Text className="text-center font-bold text-[#1f8a3e]">View digital receipt</Text></Pressable><PrimaryButton label="Share receipt" onPress={() => notify('Share sheet opened')} /></>; }
+function Complaints({ notify }: { notify: (s: string) => void }) { const [issue, setIssue] = useState(''); const [details, setDetails] = useState(''); return <><Header title="Raise a complaint" /><Text className="mb-4 mt-[-10px] text-sm text-[#6b746e]">We are here to help resolve your issue.</Text><Card><Text className="mb-3 font-bold">What is your issue?</Text>{['Payment delay', 'Slot or queue issue', 'Weighment concern', 'Other'].map((item) => <Pressable key={item} onPress={() => setIssue(item)} className={`mb-2 rounded-xl border px-4 py-3 ${issue === item ? 'border-[#1f8a3e] bg-[#e6f5ea]' : 'border-[#e5e9e5]'}`}><Text className={issue === item ? 'font-bold text-[#166b30]' : ''}>{item}</Text></Pressable>)}<TextInput value={details} onChangeText={setDetails} multiline placeholder="Tell us more (optional)" className="mt-3 h-24 rounded-xl border border-[#e5e9e5] bg-[#f4f5f4] px-3 py-3" /></Card><PrimaryButton label="Submit complaint" onPress={() => notify(issue ? 'Complaint submitted. Ref CMP-2048' : 'Select an issue first')} /></>; }
+function Notifications() { return <><Header title="Notifications" /><Card><Notification title="Slot reminder" text="Your mandi slot is tomorrow at 10:30 AM." time="Today, 9:15 AM" /><Notification title="Queue moving" text="Only 8 vehicles are ahead of you." time="Today, 9:00 AM" /><Notification title="Welcome to KisanSetu" text="Book your first slot and skip the long wait." time="Yesterday" /></Card></>; }
+function Notification({ title, text, time }: { title: string; text: string; time: string }) { return <View className="mb-5 flex-row gap-3"><View className="h-10 w-10 items-center justify-center rounded-full bg-[#e6f5ea]"><Ionicons name="notifications" size={18} color={C.green} /></View><View className="flex-1"><Text className="font-bold">{title}</Text><Text className="mt-1 text-sm text-[#6b746e]">{text}</Text><Text className="mt-1 text-[11px] text-[#9aa39c]">{time}</Text></View></View>; }
+function Profile({ booking, notify }: { booking: BookingData; notify: (s: string) => void }) { return <><Header title="Profile & settings" /><Card><View className="mb-4 flex-row items-center gap-3"><View className="h-14 w-14 items-center justify-center rounded-full bg-[#e6f5ea]"><Text className="text-2xl">🧑🏽‍🌾</Text></View><View><Text className="text-lg font-extrabold">{booking.farmer_name}</Text><Text className="text-sm text-[#6b746e]">+91 {booking.phone}</Text></View></View><Row label="Farmer ID" value={booking.farmer_id} /><Row label="Preferred centre" value={booking.centre_id} /></Card>{['Language · English', 'Notifications', 'Help & support', 'Privacy policy'].map((item) => <Pressable key={item} onPress={() => notify(`${item} opened`)} className="mb-2 flex-row items-center justify-between rounded-2xl border border-[#e5e9e5] bg-white px-4 py-4"><Text className="font-semibold">{item}</Text><Ionicons name="chevron-forward" size={18} color={C.muted} /></Pressable>)}<Pressable onPress={() => notify('You are already offline-safe')} className="mt-3"><Text className="text-center font-bold text-[#d25a3d]">Sign out</Text></Pressable></>; }
 
-      <Card>
-        <Text className="mb-[14px] text-base font-bold text-[#1c1f1d]">
-          Your Next Mandi Slot
-        </Text>
-        <View className="flex-row items-start justify-between gap-3">
-          <View className="flex-1 gap-[10px]">
-            <Text className="text-[14.5px] text-[#1c1f1d]">📅 {formatDate(booking.slot.date)}</Text>
-            <Text className="text-[14.5px] text-[#1c1f1d]">
-              🕒 {formatTime(booking.slot.start_time)} – {formatTime(booking.slot.end_time)}
-            </Text>
-            <Text className="text-[14.5px] text-[#1c1f1d]">📍 {booking.centre_name}</Text>
-          </View>
-          <View className="min-w-[100px] rounded-[14px] bg-[#e6f5ea] px-4 py-3">
-            <Text className="text-center text-[11px] uppercase tracking-[0.5px] text-[#6b746e]">
-              ETA
-            </Text>
-            <Text className="my-0.5 text-center text-[19px] font-bold text-[#166b30]">
-              {formatWait(booking.queue_info.estimated_wait_min)}
-            </Text>
-            <Text className="text-center text-[10.5px] text-[#6b746e]">Updated just now</Text>
-          </View>
-        </View>
-      </Card>
-
-      <Card>
-        <Text className="mb-[14px] text-base font-bold text-[#1c1f1d]">Live Queue Status</Text>
-        <View className="mb-[14px] flex-row justify-between">
-          <View>
-            <Text className="mb-0.5 text-[13px] text-[#6b746e]">Your Token</Text>
-            <Text className="text-[28px] font-extrabold text-[#1f8a3e]">{booking.token.token_number}</Text>
-          </View>
-          <View>
-            <Text className="mb-0.5 text-right text-[13px] text-[#6b746e]">Ahead of You</Text>
-            <Text className="text-right text-[28px] font-extrabold text-[#1c1f1d]">
-              {booking.queue_info.vehicles_ahead}
-            </Text>
-          </View>
-        </View>
-        <View className="mb-[10px] h-2 overflow-hidden rounded-md bg-[#eceeec]">
-          <View className="h-full rounded-md bg-[#1f8a3e]" style={{ width: `${progress}%` }} />
-        </View>
-        <View className="flex-row justify-between">
-          <Text className={`text-[12.5px] font-semibold ${isCalm ? 'text-[#1f8a3e]' : 'text-[#e08a2c]'}`}>
-            {isCalm ? 'Mandi Calm' : 'Mandi Crowded'}
-          </Text>
-          <Text className="text-[12.5px] text-[#6b746e]">
-            Average Waiting: {formatWait(booking.queue_info.estimated_wait_min)}
-          </Text>
-        </View>
-      </Card>
-
-      <Card>
-        <View className="mb-4 flex-row items-center justify-between">
-          <Text className="text-[15px] font-bold text-[#1c1f1d]">Track Your Procurement</Text>
-          <Text className="rounded-full bg-[#e6f5ea] px-3 py-[5px] text-[11.5px] font-bold text-[#166b30]">
-            {booking.payment.status === 'PAID' ? 'Completed' : 'In Progress'}
-          </Text>
-        </View>
-        <Text className="mb-[14px] text-[14.5px] font-semibold">
-          {booking.crop_type} ({booking.quantity_quintals} Quintal)
-        </Text>
-        <ProcurementSteps booking={booking} />
-      </Card>
-
-      <View className="mb-4 flex-row gap-[10px]">
-        <ActionButton icon="▣" label="Book Slot" onPress={() => onNavigate('slots')} />
-        <ActionButton icon="▢" label="Raise Complaint" onPress={() => onAction('Opening Complaint Form…')} />
-        <ActionButton icon="▤" label="My Receipts" onPress={() => onAction('Loading My Receipts…')} />
-        <ActionButton icon="♧" label="Notifications" onPress={() => onAction('No new notifications')} />
-      </View>
-    </>
-  );
-}
-
-function ProcurementSteps({ booking }: { booking: BookingData }) {
-  const completed = booking.procurement.accepted_status === 'APPROVED';
-  const paymentDone = booking.payment.status === 'PAID';
-  const steps = [
-    { title: 'Check-in', sub: '10:15 AM', done: true, icon: '✓' },
-    { title: 'Weight Verification', sub: completed ? '10:45 AM' : 'Pending', done: completed, icon: completed ? '✓' : '2' },
-    { title: 'Payment', sub: paymentDone ? 'Paid' : 'Pending', done: paymentDone, icon: paymentDone ? '✓' : '◷' },
-    { title: 'Receipt', sub: paymentDone ? 'Ready' : 'Pending', done: paymentDone, icon: paymentDone ? '✓' : '▤' },
-  ];
-
-  return (
-    <View className="relative flex-row justify-between">
-      <View className="absolute left-[12.5%] right-[12.5%] top-[17px] h-[3px] bg-[#e2e5e2]">
-        <View className="h-full w-1/3 bg-[#1f8a3e]" />
-      </View>
-      {steps.map((step) => (
-        <View className="z-10 flex-1 items-center" key={step.title}>
-          <View className={`mb-2 h-[34px] w-[34px] items-center justify-center rounded-full border-[3px] border-[#f4f5f4] ${step.done ? 'bg-[#1f8a3e]' : 'bg-[#e2e5e2]'}`}>
-            <Text className={`text-[15px] font-bold ${step.done ? 'text-white' : 'text-[#9aa39c]'}`}>{step.icon}</Text>
-          </View>
-          <Text className="text-center text-[12.5px] font-semibold text-[#1c1f1d]">{step.title}</Text>
-          <Text className="mt-0.5 text-center text-[11px] text-[#6b746e]">{step.sub}</Text>
-        </View>
-      ))}
-    </View>
-  );
-}
-
-function ActionButton({
-  icon,
-  label,
-  onPress,
-}: {
-  icon: string;
-  label: string;
-  onPress: () => void;
-}) {
-  return (
-    <TouchableOpacity
-      className="flex-1 items-center gap-2 rounded-2xl border border-[#eceeec] bg-white px-1 py-[14px]"
-      onPress={onPress}
-      activeOpacity={0.8}
-    >
-      <Text className="text-[22px] text-[#1f8a3e]">{icon}</Text>
-      <Text className="text-center text-[11.5px] font-semibold text-[#1c1f1d]">{label}</Text>
-    </TouchableOpacity>
-  );
-}
-
-function SlotsPage({
-  booking,
-  selectedDate,
-  selectedSlot,
-  onDateChange,
-  onSlotChange,
-  onConfirm,
-}: {
-  booking: BookingData;
-  selectedDate: string;
-  selectedSlot: string;
-  onDateChange: (date: string) => void;
-  onSlotChange: (slot: string) => void;
-  onConfirm: () => void;
-}) {
-  const dates = [
-    { label: 'Thu', date: '2026-05-21', number: '21' },
-    { label: 'Fri', date: '2026-05-22', number: '22' },
-    { label: 'Sat', date: '2026-05-23', number: '23' },
-    { label: 'Sun', date: '2026-05-24', number: '24' },
-    { label: 'Mon', date: '2026-05-25', number: '25' },
-  ];
-  const slots = [
-    { value: '08:00-08:30', label: '8:00 – 8:30', remaining: 'Full', full: true },
-    { value: '09:00-09:30', label: '9:00 – 9:30', remaining: '12 left', full: false },
-    { value: '09:30-10:00', label: '9:30 – 10:00', remaining: 'Full', full: true },
-    { value: '10:30-11:00', label: '10:30 – 11:00', remaining: '6 left', full: false },
-    { value: '11:30-12:00', label: '11:30 – 12:00', remaining: '18 left', full: false },
-    { value: '13:00-13:30', label: '1:00 – 1:30', remaining: '21 left', full: false },
-  ];
-
-  return (
-    <>
-      <Header title="Book a Slot" />
-      <Text className="mb-4 mt-[-8px] text-[13.5px] text-[#6b746e]">{booking.centre_name}</Text>
-      <Card className="p-4">
-        <Text className="mb-[10px] text-base font-bold">Select Date</Text>
-        <View className="flex-row gap-2">
-          {dates.map((day) => {
-            const active = day.date === selectedDate;
-            return (
-              <TouchableOpacity
-                className={`flex-1 items-center gap-1 rounded-[14px] border-[1.5px] px-1 py-[10px] ${active ? 'border-[#1f8a3e] bg-[#1f8a3e]' : 'border-[#eceeec] bg-[#f4f5f4]'}`}
-                key={day.date}
-                onPress={() => onDateChange(day.date)}
-              >
-                <Text className={`text-[11px] font-semibold ${active ? 'text-white' : 'text-[#6b746e]'}`}>{day.label}</Text>
-                <Text className={`text-base font-bold ${active ? 'text-white' : 'text-[#1c1f1d]'}`}>{day.number}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </Card>
-      <Card className="p-4">
-        <Text className="mb-[10px] text-base font-bold">Available Time Slots</Text>
-        <View className="flex-row flex-wrap gap-[10px]">
-          {slots.map((slot) => {
-            const selected = slot.value === selectedSlot;
-            return (
-              <TouchableOpacity
-                className={`w-[47%] rounded-xl border-[1.5px] px-3 py-[10px] ${slot.full ? 'border-[#eceeec] bg-[#f3f3f2]' : selected ? 'border-[#1f8a3e] bg-[#1f8a3e]' : 'border-[#eceeec] bg-white'}`}
-                disabled={slot.full}
-                key={slot.value}
-                onPress={() => onSlotChange(slot.value)}
-              >
-                <Text className={`text-[13px] font-semibold ${slot.full ? 'text-[#b8bdb9]' : selected ? 'text-white' : 'text-[#1c1f1d]'}`}>{slot.label}</Text>
-                <Text className={`mt-[3px] text-[11px] ${slot.full ? 'text-[#c3c7c4]' : selected ? 'text-[#e6f5ea]' : 'text-[#6b746e]'}`}>{slot.remaining}</Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-      </Card>
-      <Card className="p-4">
-        <Text className="mb-[10px] text-base font-bold">Crop Details</Text>
-        <View className="mb-[10px] flex-row justify-between">
-          <Text className="text-sm text-[#6b746e]">Crop</Text>
-          <Text className="text-sm font-semibold">{booking.crop_type}</Text>
-        </View>
-        <View className="flex-row justify-between">
-          <Text className="text-sm text-[#6b746e]">Quantity</Text>
-          <Text className="text-sm font-semibold">{booking.quantity_quintals} Quintal</Text>
-        </View>
-      </Card>
-      <TouchableOpacity className="mb-4 w-full rounded-2xl bg-[#1f8a3e] px-4 py-4" onPress={onConfirm} activeOpacity={0.85}>
-        <Text className="text-center text-[15px] font-bold text-white">Confirm Slot Booking</Text>
-      </TouchableOpacity>
-    </>
-  );
-}
-
-function StatusPage({ booking }: { booking: BookingData }) {
-  const milestones = [
-    ['Slot Booked', `${formatDate(booking.slot.date)} · ${formatTime(booking.slot.start_time)}`, true],
-    ['Entered Mandi Gate', 'Check-in confirmed · 10:15 AM', true],
-    ['Weight Verified', `${booking.quantity_quintals} Quintal ${booking.crop_type} · 10:45 AM`, booking.procurement.accepted_status === 'APPROVED'],
-    ['Payment Processing', 'Awaiting bank confirmation', booking.payment.status === 'PROCESSING'],
-    ['Receipt Generation', booking.payment.status === 'PAID' ? 'Ready' : 'Pending', booking.payment.status === 'PAID'],
-  ] as const;
-
-  return (
-    <>
-      <Header title="Status" />
-      <Text className="mb-4 mt-[-8px] text-[13.5px] text-[#6b746e]">Live updates on your visit</Text>
-      <Card>
-        <View className="mb-4 flex-row items-center justify-between">
-          <Text className="text-[15px] font-bold">Today&apos;s Visit</Text>
-          <Text className="rounded-full bg-[#e6f5ea] px-3 py-[5px] text-[11.5px] font-bold text-[#166b30]">{booking.token.token_number}</Text>
-        </View>
-        <View className="pl-1">
-          {milestones.map(([title, subtitle, done], index) => (
-            <View className="flex-row gap-[14px]" key={title}>
-              <View className="items-center">
-                <View className={`z-10 h-[30px] w-[30px] items-center justify-center rounded-full ${done ? 'bg-[#1f8a3e]' : index === 3 ? 'bg-[#e08a2c]' : 'bg-[#e2e5e2]'}`}>
-                  <Text className={`text-[13px] font-bold ${done || index === 3 ? 'text-white' : 'text-[#9aa39c]'}`}>{done ? '✓' : index === 3 ? '◷' : '▤'}</Text>
-                </View>
-                {index < milestones.length - 1 && <View className={`h-[38px] w-0.5 ${done ? 'bg-[#1f8a3e]' : 'bg-[#eceeec]'}`} />}
-              </View>
-              <View className="flex-1 pb-[22px]">
-                <Text className="mb-0.5 text-sm font-bold">{title}</Text>
-                <Text className="text-xs text-[#6b746e]">{subtitle}</Text>
-              </View>
-            </View>
-          ))}
-        </View>
-      </Card>
-      <Card>
-        <Text className="mb-4 text-base font-bold">Mandi Live Snapshot</Text>
-        <View className="flex-row gap-[10px]">
-          <Snapshot value="142" label="Farmers Today" color="text-[#1f8a3e]" />
-          <Snapshot value={String(booking.queue_info.vehicles_ahead)} label="In Queue" color="text-[#e08a2c]" />
-          <Snapshot value="₹2,840" label="Avg. Price/Qtl" color="text-[#1f8a3e]" />
-        </View>
-      </Card>
-    </>
-  );
-}
-
-function Snapshot({ value, label, color }: { value: string; label: string; color: string }) {
-  return (
-    <View className="flex-1 items-center rounded-[14px] bg-[#f4f5f4] px-2 py-[14px]">
-      <Text className={`mb-[3px] text-[18px] font-extrabold ${color}`}>{value}</Text>
-      <Text className="text-center text-[10.5px] font-semibold text-[#6b746e]">{label}</Text>
-    </View>
-  );
-}
-
-function BottomNavigation({
-  activePage,
-  onNavigate,
-}: {
-  activePage: Page;
-  onNavigate: (page: Page) => void;
-}) {
-  const items: { page: Page; icon: string; label: string }[] = [
-    { page: 'home', icon: '⌂', label: 'Home' },
-    { page: 'slots', icon: '▣', label: 'Slots' },
-    { page: 'status', icon: '◷', label: 'Status' },
-  ];
-
-  return (
-    <View className="absolute bottom-0 left-0 right-0 flex-row rounded-b-[42px] border-t border-[#eceeec] bg-white px-1 pb-5 pt-[10px]">
-      {items.map((item) => (
-        <TouchableOpacity className="flex-1 items-center gap-1" key={item.page} onPress={() => onNavigate(item.page)}>
-          <Text className={`text-[22px] ${activePage === item.page ? 'text-[#1f8a3e]' : 'text-[#9aa39c]'}`}>{item.icon}</Text>
-          <Text className={`text-[10.5px] font-semibold ${activePage === item.page ? 'text-[#1f8a3e]' : 'text-[#9aa39c]'}`}>{item.label}</Text>
-        </TouchableOpacity>
-      ))}
-      <TouchableOpacity className="flex-1 items-center gap-1" onPress={() => undefined}>
-        <Text className="text-[22px] text-[#9aa39c]">▢</Text>
-        <Text className="text-[10.5px] font-semibold text-[#9aa39c]">Complaints</Text>
-      </TouchableOpacity>
-      <TouchableOpacity className="flex-1 items-center gap-1" onPress={() => undefined}>
-        <Text className="text-[22px] text-[#9aa39c]">♙</Text>
-        <Text className="text-[10.5px] font-semibold text-[#9aa39c]">Profile</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
+function Nav({ screen, setScreen }: { screen: Screen; setScreen: (s: Screen) => void }) { const items: { key: Screen; icon: keyof typeof Ionicons.glyphMap; label: string }[] = [{ key: 'home', icon: 'home-outline', label: 'Home' }, { key: 'slots', icon: 'calendar-outline', label: 'Slots' }, { key: 'status', icon: 'pulse-outline', label: 'Status' }, { key: 'complaints', icon: 'chatbox-ellipses-outline', label: 'Help' }, { key: 'profile', icon: 'person-outline', label: 'Profile' }]; return <View className="absolute bottom-0 left-0 right-0 flex-row rounded-b-[38px] border-t border-[#e5e9e5] bg-white px-1 pb-5 pt-2">{items.map((item) => <Pressable key={item.key} onPress={() => setScreen(item.key)} className="flex-1 items-center gap-1"><Ionicons name={item.icon} size={22} color={screen === item.key ? C.green : '#9aa39c'} /><Text className={`text-[10px] font-bold ${screen === item.key ? 'text-[#1f8a3e]' : 'text-[#9aa39c]'}`}>{item.label}</Text></Pressable>)}</View>; }
