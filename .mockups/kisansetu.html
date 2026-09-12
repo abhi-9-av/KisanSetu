@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>KisanSetu</title>
+<style>
+  :root{
+    --green:#1f8a3e;
+    --green-dark:#166b30;
+    --green-light:#e6f5ea;
+    --orange:#e08a2c;
+    --bg:#f4f5f4;
+    --card:#ffffff;
+    --text:#1c1f1d;
+    --muted:#6b746e;
+    --border:#eceeec;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:#0d0f0e;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    min-height:100vh;
+    padding:30px 0;
+  }
+  .phone{
+    width:390px;
+    height:844px;
+    background:#000;
+    border-radius:55px;
+    padding:14px;
+    box-shadow:0 30px 80px rgba(0,0,0,.6);
+    position:relative;
+  }
+  .screen{
+    width:100%;
+    height:100%;
+    background:var(--bg);
+    border-radius:42px;
+    overflow-y:auto;
+    overflow-x:hidden;
+    position:relative;
+    -ms-overflow-style:none;
+    scrollbar-width:none;
+  }
+  .screen::-webkit-scrollbar{display:none;}
+  .notch{
+    position:absolute;
+    top:14px;
+    left:50%;
+    transform:translateX(-50%);
+    width:120px;
+    height:30px;
+    background:#000;
+    border-radius:20px;
+    z-index:50;
+  }
+  .statusbar{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:18px 26px 4px;
+    font-weight:600;
+    font-size:15px;
+    color:var(--text);
+  }
+  .statusbar .icons{display:flex;gap:5px;align-items:center;}
+  .content{padding:6px 20px 100px;}
+  .header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin:10px 0 18px;
+  }
+  .header h1{
+    font-size:26px;
+    color:var(--green);
+    margin:0;
+    letter-spacing:-.5px;
+  }
+  .bell{
+    width:38px;height:38px;
+    display:flex;align-items:center;justify-content:center;
+    position:relative;
+  }
+  .bell::after{
+    content:"";
+    position:absolute;
+    top:6px;right:6px;
+    width:8px;height:8px;
+    background:var(--orange);
+    border-radius:50%;
+    border:2px solid var(--bg);
+  }
+  .greet{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:20px;
+  }
+  .greet h2{margin:0 0 4px;font-size:21px;}
+  .greet p{margin:0;color:var(--muted);font-size:14px;}
+  .avatar{
+    width:56px;height:56px;border-radius:50%;
+    background:var(--green-light);
+    display:flex;align-items:center;justify-content:center;
+    font-size:26px;
+  }
+  .card{
+    background:var(--card);
+    border-radius:20px;
+    padding:20px;
+    margin-bottom:16px;
+    box-shadow:0 1px 3px rgba(0,0,0,.04);
+    border:1px solid var(--border);
+    animation:fadeUp .5s ease both;
+  }
+  .card h3{margin:0 0 14px;font-size:16px;}
+  .row{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+  .slot-info div{
+    display:flex;align-items:center;gap:8px;
+    font-size:14.5px;margin-bottom:10px;color:var(--text);
+  }
+  .slot-info div:last-child{margin-bottom:0;}
+  .eta-box{
+    background:var(--green-light);
+    border-radius:14px;
+    padding:12px 16px;
+    text-align:center;
+    min-width:100px;
+  }
+  .eta-box .lbl{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;}
+  .eta-box .val{font-size:19px;font-weight:700;color:var(--green-dark);margin:2px 0;transition:all .3s;}
+  .eta-box .upd{font-size:10.5px;color:var(--muted);}
+  .queue-top{display:flex;justify-content:space-between;margin-bottom:14px;}
+  .queue-top .lbl{font-size:13px;color:var(--muted);margin-bottom:2px;}
+  .token{font-size:28px;font-weight:800;color:var(--green);transition:all .3s;}
+  .ahead{font-size:28px;font-weight:800;text-align:right;transition:all .3s;}
+  .ahead + .lbl{text-align:right;}
+  .bar-track{
+    height:8px;background:#eceeec;border-radius:6px;overflow:hidden;margin-bottom:10px;
+  }
+  .bar-fill{
+    height:100%;background:linear-gradient(90deg,var(--green),#2fa855);
+    border-radius:6px;width:38%;
+    transition:width .6s ease;
+  }
+  .queue-foot{display:flex;justify-content:space-between;font-size:12.5px;}
+  .crowded{color:var(--orange);font-weight:600;}
+  .crowded.calm{color:var(--green);}
+  .avg{color:var(--muted);}
+  .track-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .track-head h4{margin:0;font-size:15px;}
+  .badge{
+    background:var(--green-light);color:var(--green-dark);
+    font-size:11.5px;font-weight:700;
+    padding:5px 12px;border-radius:20px;
+    transition:all .3s;
+  }
+  .badge.done{background:#e6f5ea;color:var(--green-dark);}
+  .steps{display:flex;justify-content:space-between;position:relative;margin-top:6px;}
+  .step{flex:1;text-align:center;position:relative;z-index:2;}
+  .step .dot{
+    width:34px;height:34px;border-radius:50%;
+    background:#e2e5e2;color:#9aa39c;
+    display:flex;align-items:center;justify-content:center;
+    margin:0 auto 8px;font-size:15px;font-weight:700;
+    border:3px solid var(--bg);
+    transition:all .4s ease;
+  }
+  .step.done .dot{background:var(--green);color:#fff;}
+  .step.active .dot{background:var(--orange);color:#fff;animation:pulse 1.2s infinite;}
+  .step .stitle{font-size:12.5px;font-weight:600;}
+  .step .ssub{font-size:11px;color:var(--muted);margin-top:1px;}
+  .line{
+    position:absolute;top:17px;left:12.5%;right:12.5%;
+    height:3px;background:#e2e5e2;z-index:1;
+  }
+  .line-fill{
+    position:absolute;top:0;left:0;height:100%;
+    background:var(--green);width:33%;
+    transition:width .6s ease;
+  }
+  .actions{
+    display:grid;grid-template-columns:repeat(4,1fr);
+    gap:10px;margin-bottom:16px;
+  }
+  .action{
+    background:var(--card);border:1px solid var(--border);
+    border-radius:16px;padding:14px 6px;
+    display:flex;flex-direction:column;align-items:center;gap:8px;
+    font-size:11.5px;font-weight:600;color:var(--text);
+    cursor:pointer;user-select:none;
+    transition:all .15s;
+  }
+  .action:active{transform:scale(.94);background:var(--green-light);}
+  .action svg{width:22px;height:22px;}
+  .navbar{
+    position:absolute;bottom:0;left:0;right:0;
+    background:#fff;border-top:1px solid var(--border);
+    display:flex;padding:10px 6px 22px;
+    border-radius:0 0 42px 42px;
+  }
+  .navitem{
+    flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;
+    font-size:10.5px;color:#9aa39c;font-weight:600;cursor:pointer;
+  }
+  .navitem.active{color:var(--green);}
+  .navitem svg{width:22px;height:22px;}
+  .toast{
+    position:absolute;
+    bottom:110px;left:20px;right:20px;
+    background:#1c1f1d;color:#fff;
+    padding:13px 18px;border-radius:14px;
+    font-size:13.5px;font-weight:600;
+    text-align:center;
+    opacity:0;transform:translateY(10px);
+    transition:all .35s ease;
+    z-index:60;
+    pointer-events:none;
+  }
+  .toast.show{opacity:1;transform:translateY(0);}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px);}to{opacity:1;transform:translateY(0);}}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(224,138,44,.5);}50%{box-shadow:0 0 0 6px rgba(224,138,44,0);}}
+  .card:nth-child(1){animation-delay:.05s;}
+  .card:nth-child(2){animation-delay:.15s;}
+  .card:nth-child(3){animation-delay:.25s;}
+
+  /* Slots page */
+  .daypick{display:flex;gap:8px;justify-content:space-between;}
+  .daychip{
+    flex:1;background:var(--bg);border:1.5px solid var(--border);
+    border-radius:14px;padding:10px 4px;text-align:center;cursor:pointer;
+    display:flex;flex-direction:column;gap:4px;transition:all .15s;
+  }
+  .daychip .dname{font-size:11px;color:var(--muted);font-weight:600;}
+  .daychip .dnum{font-size:16px;font-weight:700;}
+  .daychip.active{background:var(--green);border-color:var(--green);}
+  .daychip.active .dname,.daychip.active .dnum{color:#fff;}
+  .slotgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+  .slotchip{
+    border:1.5px solid var(--border);border-radius:12px;
+    padding:10px 12px;font-size:13px;font-weight:600;cursor:pointer;
+    display:flex;flex-direction:column;gap:3px;transition:all .15s;
+  }
+  .slotchip span{font-size:11px;font-weight:500;color:var(--muted);}
+  .slotchip.selected{background:var(--green);border-color:var(--green);color:#fff;}
+  .slotchip.selected span{color:#e6f5ea;}
+  .slotchip.full{background:#f3f3f2;color:#b8bdb9;cursor:not-allowed;}
+  .slotchip.full span{color:#c3c7c4;}
+  .confirmbtn{
+    width:100%;background:var(--green);color:#fff;border:none;
+    padding:16px;border-radius:16px;font-size:15px;font-weight:700;
+    cursor:pointer;margin-top:4px;transition:all .15s;
+  }
+  .confirmbtn:active{transform:scale(.97);background:var(--green-dark);}
+
+  /* Status page */
+  .timeline{position:relative;padding-left:6px;}
+  .tl-item{display:flex;gap:14px;position:relative;padding-bottom:22px;}
+  .tl-item:last-child{padding-bottom:0;}
+  .tl-item::before{
+    content:"";position:absolute;left:14px;top:30px;bottom:0;
+    width:2px;background:var(--border);
+  }
+  .tl-item:last-child::before{display:none;}
+  .tl-item.done::before{background:var(--green);}
+  .tl-dot{
+    width:30px;height:30px;border-radius:50%;flex-shrink:0;
+    background:#e2e5e2;color:#9aa39c;
+    display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:700;z-index:2;
+  }
+  .tl-item.done .tl-dot{background:var(--green);color:#fff;}
+  .tl-item.active .tl-dot{background:var(--orange);color:#fff;animation:pulse 1.2s infinite;}
+  .tl-title{font-size:14px;font-weight:700;margin-bottom:2px;}
+  .tl-sub{font-size:12px;color:var(--muted);}
+  .statgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+  .statbox{
+    background:var(--bg);border-radius:14px;padding:14px 8px;text-align:center;
+  }
+  .statval{font-size:18px;font-weight:800;margin-bottom:3px;}
+  .statlbl{font-size:10.5px;color:var(--muted);font-weight:600;}
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="notch"></div>
+  <div class="screen" id="screen">
+    <div class="statusbar">
+      <span id="clock">9:41</span>
+      <div class="icons">
+        <svg width="18" height="12" viewBox="0 0 18 12" fill="none"><rect x="0" y="8" width="3" height="4" rx="0.5" fill="#1c1f1d"/><rect x="5" y="5" width="3" height="7" rx="0.5" fill="#1c1f1d"/><rect x="10" y="2" width="3" height="10" rx="0.5" fill="#1c1f1d"/><rect x="15" y="0" width="3" height="12" rx="0.5" fill="#1c1f1d"/></svg>
+        <svg width="16" height="12" viewBox="0 0 16 12" fill="none"><path d="M8 10.5C8.6 10.5 9.1 10.1 9.1 9.5C9.1 8.9 8.6 8.5 8 8.5C7.4 8.5 6.9 8.9 6.9 9.5C6.9 10.1 7.4 10.5 8 10.5Z" fill="#1c1f1d"/><path d="M5.3 7.3C6.1 6.6 6.9 6.2 8 6.2C9.1 6.2 9.9 6.6 10.7 7.3" stroke="#1c1f1d" stroke-width="1.2" stroke-linecap="round"/><path d="M2.8 4.7C4.3 3.2 6.1 2.5 8 2.5C9.9 2.5 11.7 3.2 13.2 4.7" stroke="#1c1f1d" stroke-width="1.2" stroke-linecap="round"/></svg>
+        <svg width="24" height="12" viewBox="0 0 24 12" fill="none"><rect x="0.5" y="0.5" width="21" height="11" rx="2.5" stroke="#1c1f1d"/><rect x="2" y="2" width="17" height="8" rx="1.5" fill="#1c1f1d"/><rect x="22.5" y="4" width="1.5" height="4" rx="0.7" fill="#1c1f1d"/></svg>
+      </div>
+    </div>
+
+    <div class="content" id="page-home">
+      <div class="header">
+        <h1>KisanSetu</h1>
+        <div class="bell">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" stroke="#1c1f1d" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="M13.7 21a2 2 0 0 1-3.4 0" stroke="#1c1f1d" stroke-width="1.8" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+
+      <div class="greet">
+        <div>
+          <h2>Namaste, Ramesh 👋</h2>
+          <p>Aaj ka din shubh ho!</p>
+        </div>
+        <div class="avatar">🧑🏽‍🌾</div>
+      </div>
+
+      <div class="card">
+        <h3>Your Next Mandi Slot</h3>
+        <div class="row">
+          <div class="slot-info">
+            <div>📅 22 May 2026</div>
+            <div>🕒 10:30 AM – 11:00 AM</div>
+            <div>📍 Krishi Upaj Mandi, Indore</div>
+          </div>
+          <div class="eta-box">
+            <div class="lbl">ETA</div>
+            <div class="val" id="etaVal">1h 15m</div>
+            <div class="upd" id="etaUpd">Updated 9:30 AM</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Live Queue Status</h3>
+        <div class="queue-top">
+          <div>
+            <div class="lbl">Your Token</div>
+            <div class="token" id="tokenVal">A-125</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="lbl">Ahead of You</div>
+            <div class="ahead" id="aheadVal">24</div>
+          </div>
+        </div>
+        <div class="bar-track"><div class="bar-fill" id="barFill"></div></div>
+        <div class="queue-foot">
+          <span class="crowded" id="crowdedTxt">Mandi Crowded</span>
+          <span class="avg">Average Waiting: <span id="avgVal">1h 15m</span></span>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="track-head">
+          <h4>Track Your Procurement</h4>
+          <span class="badge" id="statusBadge">In Progress</span>
+        </div>
+        <div style="font-weight:600;font-size:14.5px;margin-bottom:14px;">Soybean (2 Quintal)</div>
+        <div class="steps">
+          <div class="line"><div class="line-fill" id="lineFill"></div></div>
+          <div class="step done" id="s1">
+            <div class="dot">✓</div>
+            <div class="stitle">Check-in</div>
+            <div class="ssub">10:15 AM</div>
+          </div>
+          <div class="step done" id="s2">
+            <div class="dot">✓</div>
+            <div class="stitle">Weight<br>Verification</div>
+            <div class="ssub">10:45 AM</div>
+          </div>
+          <div class="step" id="s3">
+            <div class="dot">🕒</div>
+            <div class="stitle">Payment</div>
+            <div class="ssub" id="s3sub">Pending</div>
+          </div>
+          <div class="step" id="s4">
+            <div class="dot">📄</div>
+            <div class="stitle">Receipt</div>
+            <div class="ssub" id="s4sub">Pending</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="actions">
+        <div class="action" onclick="toast('Redirecting to Slot Booking…')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1f8a3e" stroke-width="1.8"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+          Book Slot
+        </div>
+        <div class="action" onclick="toast('Opening Complaint Form…')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1f8a3e" stroke-width="1.8"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/><path d="M9 10l2 2 4-4" stroke="#1f8a3e"/></svg>
+          Raise Complaint
+        </div>
+        <div class="action" onclick="toast('Loading My Receipts…')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1f8a3e" stroke-width="1.8"><path d="M6 2h9l5 5v13a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          My Receipts
+        </div>
+        <div class="action" onclick="simulatePayment()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="#1f8a3e" stroke-width="1.8"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.7 21a2 2 0 0 1-3.4 0"/></svg>
+          Notifications
+        </div>
+      </div>
+    </div>
+
+    <div class="content" id="page-slots" style="display:none;">
+      <div class="header">
+        <h1 style="font-size:22px;">Book a Slot</h1>
+      </div>
+      <p style="color:var(--muted);font-size:13.5px;margin:-8px 0 16px;">Krishi Upaj Mandi, Indore</p>
+
+      <div class="card" style="padding:16px;">
+        <h3 style="margin-bottom:10px;">Select Date</h3>
+        <div class="daypick">
+          <div class="daychip" onclick="pickDay(this)">
+            <span class="dname">Thu</span><span class="dnum">21</span>
+          </div>
+          <div class="daychip active" onclick="pickDay(this)">
+            <span class="dname">Fri</span><span class="dnum">22</span>
+          </div>
+          <div class="daychip" onclick="pickDay(this)">
+            <span class="dname">Sat</span><span class="dnum">23</span>
+          </div>
+          <div class="daychip" onclick="pickDay(this)">
+            <span class="dname">Sun</span><span class="dnum">24</span>
+          </div>
+          <div class="daychip" onclick="pickDay(this)">
+            <span class="dname">Mon</span><span class="dnum">25</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <h3 style="margin-bottom:10px;">Available Time Slots</h3>
+        <div class="slotgrid">
+          <div class="slotchip full">8:00 – 8:30<span>Full</span></div>
+          <div class="slotchip" onclick="pickSlot(this)">9:00 – 9:30<span>12 left</span></div>
+          <div class="slotchip full">9:30 – 10:00<span>Full</span></div>
+          <div class="slotchip selected" onclick="pickSlot(this)">10:30 – 11:00<span>6 left</span></div>
+          <div class="slotchip" onclick="pickSlot(this)">11:30 – 12:00<span>18 left</span></div>
+          <div class="slotchip" onclick="pickSlot(this)">1:00 – 1:30<span>21 left</span></div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:16px;">
+        <h3 style="margin-bottom:10px;">Crop Details</h3>
+        <div class="row" style="margin-bottom:10px;">
+          <span style="font-size:14px;color:var(--muted);">Crop</span>
+          <span style="font-size:14px;font-weight:600;">Soybean</span>
+        </div>
+        <div class="row">
+          <span style="font-size:14px;color:var(--muted);">Quantity</span>
+          <span style="font-size:14px;font-weight:600;">2 Quintal</span>
+        </div>
+      </div>
+
+      <button class="confirmbtn" onclick="confirmSlot()">Confirm Slot Booking</button>
+    </div>
+
+    <div class="content" id="page-status" style="display:none;">
+      <div class="header">
+        <h1 style="font-size:22px;">Status</h1>
+      </div>
+      <p style="color:var(--muted);font-size:13.5px;margin:-8px 0 16px;">Live updates on your visit</p>
+
+      <div class="card">
+        <div class="track-head">
+          <h4>Today's Visit</h4>
+          <span class="badge">Token A-125</span>
+        </div>
+        <div class="timeline">
+          <div class="tl-item done">
+            <div class="tl-dot">✓</div>
+            <div class="tl-body">
+              <div class="tl-title">Slot Booked</div>
+              <div class="tl-sub">22 May, 10:30 – 11:00 AM · 8:02 AM</div>
+            </div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot">✓</div>
+            <div class="tl-body">
+              <div class="tl-title">Entered Mandi Gate</div>
+              <div class="tl-sub">Check-in confirmed · 10:15 AM</div>
+            </div>
+          </div>
+          <div class="tl-item done">
+            <div class="tl-dot">✓</div>
+            <div class="tl-body">
+              <div class="tl-title">Weight Verified</div>
+              <div class="tl-sub">2 Quintal Soybean · 10:45 AM</div>
+            </div>
+          </div>
+          <div class="tl-item active">
+            <div class="tl-dot">🕒</div>
+            <div class="tl-body">
+              <div class="tl-title">Payment Processing</div>
+              <div class="tl-sub">Awaiting bank confirmation</div>
+            </div>
+          </div>
+          <div class="tl-item">
+            <div class="tl-dot">📄</div>
+            <div class="tl-body">
+              <div class="tl-title">Receipt Generation</div>
+              <div class="tl-sub">Pending</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3>Mandi Live Snapshot</h3>
+        <div class="statgrid">
+          <div class="statbox">
+            <div class="statval" style="color:var(--green);">142</div>
+            <div class="statlbl">Farmers Today</div>
+          </div>
+          <div class="statbox">
+            <div class="statval" style="color:var(--orange);">24</div>
+            <div class="statlbl">In Queue</div>
+          </div>
+          <div class="statbox">
+            <div class="statval" style="color:var(--green);">₹2,840</div>
+            <div class="statlbl">Avg. Price/Qtl</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <div class="navbar">
+      <div class="navitem active" id="nav-home" onclick="showPage('home')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12l9-9 9 9"/><path d="M5 10v10a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1V10"/></svg>
+        Home
+      </div>
+      <div class="navitem" id="nav-slots" onclick="showPage('slots')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M3 9h18M8 2v4M16 2v4"/></svg>
+        Slots
+      </div>
+      <div class="navitem" id="nav-status" onclick="showPage('status')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>
+        Status
+      </div>
+      <div class="navitem" id="nav-complaints" onclick="toast('Complaints view coming up…')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 11.5a8.38 8.38 0 0 1-8.5 8.4 8.5 8.5 0 0 1-4-1L3 20l1.1-4.5A8.4 8.4 0 1 1 21 11.5z"/></svg>
+        Complaints
+      </div>
+      <div class="navitem" id="nav-profile" onclick="toast('Profile view coming up…')">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 4-6 8-6s8 2 8 6"/></svg>
+        Profile
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// live clock
+function updateClock(){
+  const d=new Date();
+  let h=d.getHours()%12; if(h===0)h=12;
+  const m=d.getMinutes().toString().padStart(2,'0');
+  document.getElementById('clock').textContent = h+":"+m;
+}
+updateClock(); setInterval(updateClock,30000);
+
+function showPage(name){
+  ['home','slots','status'].forEach(p=>{
+    document.getElementById('page-'+p).style.display = (p===name)?'block':'none';
+  });
+  ['home','slots','status','complaints','profile'].forEach(n=>{
+    const el=document.getElementById('nav-'+n);
+    if(el) el.classList.toggle('active', n===name);
+  });
+  document.getElementById('screen').scrollTop = 0;
+}
+
+function pickDay(el){
+  document.querySelectorAll('.daychip').forEach(c=>c.classList.remove('active'));
+  el.classList.add('active');
+}
+
+function pickSlot(el){
+  if(el.classList.contains('full')) return;
+  document.querySelectorAll('.slotchip').forEach(c=>c.classList.remove('selected'));
+  el.classList.add('selected');
+}
+
+function confirmSlot(){
+  toast('Slot confirmed! Token A-125 issued ✅');
+  setTimeout(()=>showPage('home'), 1600);
+}
+
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(window._tt);
+  window._tt=setTimeout(()=>t.classList.remove('show'),1800);
+}
+
+// Simulate live queue movement automatically for demo drama
+let ahead=24, eta=75; // minutes
+let tokenNum=125;
+function tick(){
+  if(ahead>0){
+    ahead -= 1;
+    tokenNum += 1;
+    eta = Math.max(5, eta-3);
+    document.getElementById('aheadVal').textContent = ahead;
+    document.getElementById('tokenVal').textContent = 'A-'+tokenNum;
+    const h = Math.floor(eta/60), m = eta%60;
+    document.getElementById('etaVal').textContent = (h>0? h+'h ':'')+m+'m';
+    document.getElementById('avgVal').textContent = (h>0? h+'h ':'')+m+'m';
+    document.getElementById('etaUpd').textContent = 'Updated just now';
+    const pct = Math.min(95, 38 + (24-ahead)*2.5);
+    document.getElementById('barFill').style.width = pct+'%';
+    const crowdEl = document.getElementById('crowdedTxt');
+    if(ahead < 10){ crowdEl.textContent='Mandi Calm'; crowdEl.classList.add('calm'); }
+  }
+}
+setInterval(tick, 2200);
+
+// Payment simulation triggered by tapping notifications icon (for demo flair)
+let paid=false;
+function simulatePayment(){
+  if(paid){ toast('No new notifications'); return; }
+  paid=true;
+  toast('Payment received! Generating receipt…');
+  document.getElementById('s3').classList.remove('active');
+  document.getElementById('s3').classList.add('done');
+  document.getElementById('s3').querySelector('.dot').textContent='✓';
+  document.getElementById('s3sub').textContent='11:05 AM';
+  document.getElementById('lineFill').style.width='66%';
+
+  setTimeout(()=>{
+    document.getElementById('s4').classList.add('done');
+    document.getElementById('s4').querySelector('.dot').textContent='✓';
+    document.getElementById('s4sub').textContent='11:08 AM';
+    document.getElementById('lineFill').style.width='100%';
+    const badge=document.getElementById('statusBadge');
+    badge.textContent='Completed';
+    badge.classList.add('done');
+    toast('Procurement completed ✅');
+  }, 1400);
+}
+
+// auto-highlight payment step after a delay to show it's "next"
+setTimeout(()=>{
+  document.getElementById('s3').classList.add('active');
+},1200);
+</script>
+
+</body>
+</html>

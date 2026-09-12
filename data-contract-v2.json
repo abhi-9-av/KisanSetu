@@ -1,7 +1,7 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "title": "KrishiPragatiDataContract",
-  "description": "Enforced Data Contract for KrishiPragati (SIH 2026 PS 26032) across React Native Frontend, Streamlit Dashboard, and FastAPI Backend",
+  "title": "KisanSetuDataContract",
+  "description": "Enforced Data Contract for KisanSetu (SIH 2026 PS 26032) across React Native Frontend, Streamlit Dashboard, and FastAPI Backend",
   "type": "object",
   "properties": {
     "booking_id": { "type": "string", "example": "BKG-1001" },

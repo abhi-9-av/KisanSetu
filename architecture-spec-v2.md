@@ -1,6 +1,6 @@
-# KrishiPragati: Technical Architecture & API Specifications
+# KisanSetu: Technical Architecture & API Specifications
 
-This document defines the complete code layout, database models, and API endpoints for **KrishiPragati** (SIH 2026 Problem Statement 26032). Use this specification as a single source of truth when prompting GitHub Copilot.
+This document defines the complete code layout, database models, and API endpoints for **KisanSetu** (SIH 2026 Problem Statement 26032). Use this specification as a single source of truth when prompting GitHub Copilot.
 
 ---
 

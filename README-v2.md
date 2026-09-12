@@ -1,4 +1,4 @@
-# 🌾 KrishiPragati (KisanSetu)
+# 🌾 KisanSetu
 > **SIH 2026 Problem Statement ID:** 26032  
 > **Title:** Smart Procurement & Queue Management Platform for Farmers  
 > **Theme:** Agriculture, Foodtech & Rural Development  
@@ -7,9 +7,9 @@
 
 ## 📌 Executive Summary
 
-**KrishiPragati** is an intelligent agricultural logistics and queue-coordination platform designed to eliminate massive physical delays, traffic jams, and administrative uncertainty at government procurement centers (*mandis*).
+**KisanSetu** is an intelligent agricultural logistics and queue-coordination platform designed to eliminate massive physical delays, traffic jams, and administrative uncertainty at government procurement centers (*mandis*).
 
-While existing state platforms (such as *e-Uparjan*) handle basic digital registration and static appointment scheduling, farmers still face multi-day physical waiting queues, idling fuel costs, and payment delays. **KrishiPragati** bridges this physical "black box" gap by introducing **real-time capacity-aware slot recommendations**, **live physical queue tracking with dynamic ETAs**, and an **automated 7-day payment escalation sentinel** that directly routes unresolved payout stalls to the state **CM Helpline**.
+While existing state platforms (such as *e-Uparjan*) handle basic digital registration and static appointment scheduling, farmers still face multi-day physical waiting queues, idling fuel costs, and payment delays. **KisanSetu** bridges this physical "black box" gap by introducing **real-time capacity-aware slot recommendations**, **live physical queue tracking with dynamic ETAs**, and an **automated 7-day payment escalation sentinel** that directly routes unresolved payout stalls to the state **CM Helpline**.
 
 ---
 
@@ -111,7 +111,7 @@ npx expo start
 
 ## 📊 Competitive Matrix
 
-| Feature | Existing Portals (e.g. e-Uparjan) | CM Helpline | KrishiPragati |
+| Feature | Existing Portals (e.g. e-Uparjan) | CM Helpline | KisanSetu |
 | :--- | :---: | :---: | :---: |
 | Slot Booking | Static | ❌ | **Capacity-Aware & Dynamic** |
 | Queue Visibility | Black Box (None) | ❌ | **Live Token & ETA Tracking** |
@@ -121,5 +121,5 @@ npx expo start
 ---
 
 ## 🏆 Smart India Hackathon 2026
-Built with ❤️ by **Team KrishiPragati**.  
+Built with ❤️ by **Team KisanSetu**.  
 *Empowering Indian farmers through transparent, predictable, and stress-free procurement logistics.*

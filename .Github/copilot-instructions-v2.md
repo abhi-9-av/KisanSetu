@@ -1,6 +1,6 @@
-# GitHub Copilot System Instructions: KrishiPragati (SIH 2026 PS 26032)
+# GitHub Copilot System Instructions: KisanSetu (SIH 2026 PS 26032)
 
-> **Context for GitHub Copilot:** You are assisting in building **KrishiPragati** (KisanSetu), an intelligent agricultural procurement and queue management platform for Smart India Hackathon 2026 (Problem Statement 26032). Do NOT hallucinate tech stacks, state names, or JSON field names outside of this specification.
+> **Context for GitHub Copilot:** You are assisting in building **KisanSetu** (KisanSetu), an intelligent agricultural procurement and queue management platform for Smart India Hackathon 2026 (Problem Statement 26032). Do NOT hallucinate tech stacks, state names, or JSON field names outside of this specification.
 
 ---
 
@@ -77,7 +77,7 @@ Copilot must ALWAYS stick strictly to these field names and data types across Mo
        "centre_id": "C-07",
        "issue": "Payment delayed beyond 7-day SLA",
        "days_pending": 8,
-       "auto_escalated_by": "KrishiPragati_Sentinel_Daemon"
+       "auto_escalated_by": "KisanSetu_Sentinel_Daemon"
      }
      ```
 
