@@ -1,24 +1,27 @@
 # KisanSetu: Technical Architecture & API Specifications
 
-This document defines the complete code layout, database models, and API endpoints for **KisanSetu** (SIH 2026 Problem Statement 26032). Use this specification as a single source of truth when prompting GitHub Copilot.
+This document describes the implemented code layout, database models, and API
+endpoints for **KisanSetu** (SIH 2026 Problem Statement 26032). The running
+FastAPI application in `backend/main.py` and the Pydantic schemas are the
+authoritative API contract.
 
 ---
 
 ## 📁 Recommended Repository Layout
 
 ```
-krishipragati/
+KisanSetu/
 ├── .github/
 │   └── copilot-instructions.md       # Copilot system prompt
-├── DATA_CONTRACT.json                 # Shared JSON schema specification
-├── ARCHITECTURE.md                    # System architecture (this file)
+├── data-contract-v2.json              # Shared JSON schema specification
+├── architecture-spec-v2.md            # System architecture (this file)
 ├── backend/                           # FastAPI Server
 │   ├── main.py                        # FastAPI entrypoint & routes
 │   ├── database.py                    # SQLite engine & session maker
 │   ├── models.py                      # SQLAlchemy ORM models
 │   ├── schemas.py                     # Pydantic schemas
-│   ├── queue_engine.py                # ETA & capacity calculation logic
-│   └── sentinel.py                    # 7-day payment escalation daemon
+│   ├── alembic/                       # Database migrations
+│   └── tests/                         # Backend regression tests
 ├── apps/
 │   ├── mobile/                        # React Native (Expo + TypeScript)
 │   │   ├── App.tsx                    # Main app container
@@ -35,32 +38,34 @@ krishipragati/
 
 ---
 
-## ⚡ FastAPI REST API Endpoints Specification
+## ⚡ FastAPI REST API Endpoints
 
 ### 1. Slot Booking & Search
-- `GET /api/v1/centres/search?crop={crop}&lat={lat}&lng={lng}`
-  - Returns recommended procurement centres sorted by capacity & distance.
-- `POST /api/v1/bookings/create`
-  - Body: `{ farmer_id, centre_id, crop_type, quantity_quintals, slot_date, slot_time }`
-  - Action: Creates booking, generates `token_number` (e.g., `T-018`), and returns booking record.
+- `GET /api/v1/centres?search={query}`
+- `GET /api/v1/slots/availability?centre_id={id}&slot_date={date}`
+- `POST /api/v1/bookings/create` (Bearer)
+  - Body: `{ centre_id, crop_type, quantity_quintals, slot_date, slot_start_time }`
+  - Creates a capacity-checked booking and token.
+- `GET /api/v1/bookings`, `GET /api/v1/bookings/{booking_id}` (Bearer)
+- `POST /api/v1/bookings/{booking_id}/cancel` (Bearer)
 
 ### 2. Live Queue & ETA
 - `GET /api/v1/queue/status/{booking_id}`
   - Returns: `{ token_number, status, vehicles_ahead, estimated_wait_min }`
-- `POST /api/v1/operator/checkin`
-  - Body: `{ booking_id, vehicle_number }`
-  - Action: Updates status to `ARRIVED` -> `WAITING`, updates queue depth.
+- `POST /api/v1/operator/bookings/{booking_id}/check-in`
+  - Uses the development operator access header and advances `BOOKED` → `ARRIVED` → `WAITING`.
 
 ### 3. Procurement & Weighment
-- `POST /api/v1/operator/weighment`
-  - Body: `{ booking_id, weight_kg, quality_grade }`
-  - Action: Sets status to `PROCUREMENT_COMPLETED`, sets payment status to `PAYMENT_INITIATED`, issues digital receipt.
+- `POST /api/v1/operator/bookings/{booking_id}/weighment`
+  - Uses the development operator access header and records weighment and quality status.
 
 ### 4. Payment Tracker & CM Helpline Escalation
-- `GET /api/v1/payment/track/{booking_id}`
-  - Returns transaction milestone timestamps and `days_stalled`.
-- `POST /api/v1/sentinel/check-escalations`
-  - Action: Scans database for payments pending > 7 days, posts automated webhook payload to CM Helpline API endpoint.
+- `GET /api/v1/farmer/payments`, `GET /api/v1/farmer/payments/{booking_id}` (Bearer)
+- `GET /api/v1/farmer/bookings/{booking_id}/receipt` (Bearer)
+- `PATCH /api/v1/operator/bookings/{booking_id}/payment`
+  - Uses the development operator access header and enforces payment transitions.
+- `POST /api/v1/operator/sentinel/payment-escalations`
+  - Uses the development operator access header and records payment stalls over seven days.
 
 ---
 

@@ -5,15 +5,14 @@ development; PostgreSQL is required for staging and production.
 
 ## Setup
 
-From the repository root:
+Run these commands from the repository root:
 
 ```bash
-cd backend
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-alembic -c alembic.ini upgrade head
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate
+pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+alembic -c backend/alembic.ini upgrade head
 python -m backend.seed
 uvicorn backend.main:app --reload --port 8000
 ```
@@ -44,7 +43,7 @@ instances. In non-development environments, configure a unique
 `OPERATOR_ACCESS_TOKEN` (16+ random characters); the development default is
 rejected at startup. Never commit these secrets or place them in client code.
 
-With the server running, the repository smoke check can be run with
+With the server running, run the repository smoke check with
 `python backend/validate_api.py`.
 
 ## Endpoints
@@ -79,12 +78,12 @@ ignored by Git and can be recreated at any time from the seed command.
 
 ## Migrations
 
-Run these commands from `backend/` (with the virtual environment active):
+Run these commands from the repository root (with the virtual environment active):
 
 ```bash
-alembic -c alembic.ini upgrade head
-alembic -c alembic.ini current
-alembic -c alembic.ini downgrade base
+alembic -c backend/alembic.ini upgrade head
+alembic -c backend/alembic.ini current
+alembic -c backend/alembic.ini downgrade base
 ```
 
 Set `DATABASE_URL` to a PostgreSQL URL such as

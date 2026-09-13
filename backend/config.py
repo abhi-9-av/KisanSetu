@@ -17,7 +17,10 @@ class Settings(BaseSettings):
     otp_verify_limit: int = 10
     otp_rate_limit_window_seconds: int = 60
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=Path(__file__).resolve().parent / ".env",
+        env_file_encoding="utf-8",
+    )
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":

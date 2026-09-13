@@ -64,17 +64,17 @@ While existing state platforms (such as *e-Uparjan*) handle basic digital regist
 ```
 .
 ├── .github/
-│   └── copilot-instructions.md    # Strict coding guidelines for GitHub Copilot
+│   └── workflows/backend.yml      # Backend CI checks
 ├── apps/
 │   ├── mobile/                    # React Native (Expo) Farmer App
 │   └── operator/                  # Streamlit Mandi Operator Dashboard
 ├── backend/
 │   ├── main.py                    # FastAPI application entrypoint
-│   ├── database.py                # SQLite connection and models
-│   ├── queue_engine.py            # Dynamic ETA & capacity scheduler logic
-│   └── sentinel.py                # 7-day payment escalation daemon
-├── DATA_CONTRACT.json             # Canonical JSON schema for all team entities
-├── ARCHITECTURE.md                # System specifications and API documentation
+│   ├── database.py                # SQLAlchemy connection and sessions
+│   ├── alembic/                   # Database migrations
+│   └── tests/                     # Backend regression tests
+├── data-contract-v2.json          # Canonical JSON schema for all team entities
+├── architecture-spec-v2.md        # System specifications and API documentation
 └── README.md                      # Project documentation
 ```
 
@@ -84,9 +84,12 @@ While existing state platforms (such as *e-Uparjan*) handle basic digital regist
 
 ### 1. Backend Server (FastAPI)
 ```bash
-python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+python3 -m venv backend/.venv
+source backend/.venv/bin/activate  # On Windows: backend\.venv\Scripts\activate
 pip install -r backend/requirements.txt
+cp backend/.env.example backend/.env
+alembic -c backend/alembic.ini upgrade head
+python -m backend.seed
 uvicorn backend.main:app --reload --port 8000
 ```
 *API documentation will be available at `http://localhost:8000/docs`.*
@@ -94,8 +97,7 @@ uvicorn backend.main:app --reload --port 8000
 For a PostgreSQL-backed deployment, use the checked-in Alembic migrations:
 
 ```bash
-cd backend
-alembic -c alembic.ini upgrade head
+alembic -c backend/alembic.ini upgrade head
 ```
 
 `DATABASE_URL` accepts `sqlite:///...` for development and
