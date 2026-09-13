@@ -3,7 +3,7 @@ import json
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
@@ -76,6 +76,17 @@ def current_farmer(
     if not farmer:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired or invalid")
     return farmer
+
+
+def development_operator_access(
+    access_token: str | None = Header(default=None, alias="X-Operator-Access"),
+) -> bool:
+    """Local-only operator gate; this is deliberately not production authentication."""
+    if settings.environment != "development":
+        raise HTTPException(status_code=403, detail="Operator dashboard is disabled outside development")
+    if access_token != settings.operator_access_token:
+        raise HTTPException(status_code=401, detail="Valid local operator access is required")
+    return True
 
 
 @app.post("/api/v1/auth/request-otp", response_model=OtpRequestResponse)
@@ -292,8 +303,79 @@ def digital_receipt(booking_id: str, farmer: Farmer = Depends(current_farmer), d
             "completed_at": booking.procurement.completed_at, "issued_at": datetime.utcnow()}
 
 
+@app.get("/api/v1/operator/bookings", response_model=list[BookingSummary])
+def operator_bookings(
+    centre_id: str | None = Query(default=None),
+    slot_date: date | None = Query(default=None),
+    db: Session = Depends(get_db),
+    _: bool = Depends(development_operator_access),
+):
+    query = select(Booking).order_by(Booking.slot_start_time, Booking.token_number)
+    if centre_id:
+        query = query.where(Booking.centre_id == centre_id)
+    if slot_date:
+        query = query.where(Booking.slot_date == slot_date)
+    return [_booking_response(row) for row in db.scalars(query).all()]
+
+
+@app.get("/api/v1/operator/bookings/{booking_id}", response_model=BookingSummary)
+def operator_booking_detail(
+    booking_id: str,
+    db: Session = Depends(get_db),
+    _: bool = Depends(development_operator_access),
+):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    return _booking_response(booking)
+
+
+@app.get("/api/v1/operator/complaints", response_model=list[ComplaintResponse])
+def operator_complaints(
+    status_filter: str | None = Query(default=None, alias="status"),
+    db: Session = Depends(get_db),
+    _: bool = Depends(development_operator_access),
+):
+    query = select(Complaint).order_by(Complaint.created_at.desc())
+    if status_filter:
+        query = query.where(Complaint.status == status_filter.upper())
+    return list(db.scalars(query).all())
+
+
+@app.get("/api/v1/operator/escalations", response_model=list[EscalationResponse])
+def operator_escalations(
+    include_resolved: bool = Query(default=False),
+    db: Session = Depends(get_db),
+    _: bool = Depends(development_operator_access),
+):
+    query = select(Escalation).order_by(Escalation.created_at.desc())
+    if not include_resolved:
+        query = query.where(Escalation.resolved.is_(False))
+    rows = db.scalars(query).all()
+    result = []
+    for row in rows:
+        payload = json.loads(row.payload) if row.payload else {}
+        result.append({"escalation_id": row.id, "payment_id": row.payment_id,
+                       "booking_id": payload.get("booking_id", ""), "reason": row.reason,
+                       "payload": payload, "created_at": row.created_at})
+    return result
+
+
+@app.get("/api/v1/operator/notifications", response_model=list[NotificationResponse])
+def operator_notifications(
+    unread_only: bool = Query(default=False),
+    db: Session = Depends(get_db),
+    _: bool = Depends(development_operator_access),
+):
+    query = select(Notification).order_by(Notification.created_at.desc())
+    if unread_only:
+        query = query.where(Notification.read.is_(False))
+    return list(db.scalars(query).all())
+
+
 @app.post("/api/v1/operator/bookings/{booking_id}/weighment", response_model=dict)
-def operator_weighment(booking_id: str, payload: WeighmentUpdate, db: Session = Depends(get_db)):
+def operator_weighment(booking_id: str, payload: WeighmentUpdate, db: Session = Depends(get_db),
+                       _: bool = Depends(development_operator_access)):
     booking = db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -322,7 +404,8 @@ _PAYMENT_TRANSITIONS = {
 
 
 @app.patch("/api/v1/operator/bookings/{booking_id}/payment", response_model=PaymentResponse)
-def operator_payment_status(booking_id: str, payload: PaymentTransition, db: Session = Depends(get_db)):
+def operator_payment_status(booking_id: str, payload: PaymentTransition, db: Session = Depends(get_db),
+                            _: bool = Depends(development_operator_access)):
     booking = db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")
@@ -390,7 +473,7 @@ def mark_notification_read(notification_id: str, farmer: Farmer = Depends(curren
 
 
 @app.post("/api/v1/operator/sentinel/payment-escalations", response_model=list[EscalationResponse])
-def scan_payment_escalations(db: Session = Depends(get_db)):
+def scan_payment_escalations(db: Session = Depends(get_db), _: bool = Depends(development_operator_access)):
     cutoff = datetime.utcnow() - timedelta(days=7)
     payments = db.scalars(select(Payment).where(Payment.status.in_(
         [PaymentStatus.PAYMENT_INITIATED, PaymentStatus.PROCESSING]),
@@ -417,7 +500,8 @@ def scan_payment_escalations(db: Session = Depends(get_db)):
 
 
 @app.post("/api/v1/operator/bookings/{booking_id}/check-in", response_model=CheckInResponse)
-def operator_check_in(booking_id: str, db: Session = Depends(get_db)):
+def operator_check_in(booking_id: str, db: Session = Depends(get_db),
+                      _: bool = Depends(development_operator_access)):
     booking = db.get(Booking, booking_id)
     if not booking:
         raise HTTPException(status_code=404, detail="Booking not found")

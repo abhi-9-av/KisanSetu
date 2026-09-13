@@ -6,11 +6,14 @@ from urllib.request import Request, urlopen
 BASE_URL = os.getenv("KISANSETU_API_URL", "http://127.0.0.1:8000").rstrip("/")
 
 
-def call(path: str, method: str = "GET", body: dict | None = None, token: str | None = None):
+def call(path: str, method: str = "GET", body: dict | None = None, token: str | None = None,
+         operator: bool = False):
     data = json.dumps(body).encode() if body is not None else None
     headers = {"content-type": "application/json"} if data else {}
     if token:
         headers["authorization"] = f"Bearer {token}"
+    if operator:
+        headers["X-Operator-Access"] = os.getenv("OPERATOR_ACCESS_TOKEN", "local-operator")
     request = Request(f"{BASE_URL}{path}", data=data, headers=headers, method=method)
     with urlopen(request) as response:
         assert response.status in (200, 201)
@@ -32,7 +35,7 @@ booking_id = booking["booking_id"]
 assert call("/api/v1/bookings", token=token)
 assert call(f"/api/v1/bookings/{booking_id}", token=token)["booking_id"] == booking_id
 assert call(f"/api/v1/queue/status/{booking_id}", token=token)["booking_id"] == booking_id
-assert call(f"/api/v1/operator/bookings/{booking_id}/check-in", "POST")["token_status"] == "ARRIVED"
-assert call(f"/api/v1/operator/bookings/{booking_id}/check-in", "POST")["token_status"] == "WAITING"
+assert call(f"/api/v1/operator/bookings/{booking_id}/check-in", "POST", operator=True)["token_status"] == "ARRIVED"
+assert call(f"/api/v1/operator/bookings/{booking_id}/check-in", "POST", operator=True)["token_status"] == "WAITING"
 assert call(f"/api/v1/bookings/{booking_id}/cancel", "POST", token=token)["token"]["status"] == "CANCELLED"
 print("KisanSetu API smoke validation passed")

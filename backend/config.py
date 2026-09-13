@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     environment: str = "development"
     database_url: str = "sqlite:///./kisansetu.db"
     cors_origins: str = "http://localhost:8081,http://localhost:19006"
+    # Development-only gate for the operator dashboard. Never use this in production.
+    operator_access_token: str = "local-operator"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
