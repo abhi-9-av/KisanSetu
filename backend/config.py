@@ -21,11 +21,18 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_security_settings(self) -> "Settings":
-        if self.environment.strip().lower() != "development":
+        environment = self.environment.strip().lower()
+        if environment not in {"development", "test", "staging", "production"}:
+            raise ValueError("ENVIRONMENT must be development, test, staging, or production")
+        if environment in {"staging", "production"}:
             if self.operator_access_token == "local-operator" or len(self.operator_access_token) < 16:
                 raise ValueError("OPERATOR_ACCESS_TOKEN must be explicitly set to a long random value outside development")
             if self.auth_secret_key == "development-only-change-me" or len(self.auth_secret_key) < 32:
                 raise ValueError("AUTH_SECRET_KEY must be explicitly set to a 32+ character random value outside development")
+            if self.database_url.startswith("sqlite"):
+                raise ValueError("DATABASE_URL must use PostgreSQL in staging or production")
+        if not self.database_url.startswith(("sqlite:///", "postgresql://", "postgresql+psycopg://")):
+            raise ValueError("DATABASE_URL must be a SQLite or PostgreSQL SQLAlchemy URL")
         if min(self.otp_request_limit, self.otp_verify_limit, self.otp_rate_limit_window_seconds) <= 0:
             raise ValueError("OTP rate limit settings must be positive")
         return self

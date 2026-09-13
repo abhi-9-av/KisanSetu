@@ -1,0 +1,8 @@
+.git
+.venv
+backend/.venv
+backend/*.db
+**/__pycache__
+*.py[cod]
+apps/mobile/node_modules
+apps/mobile/.expo

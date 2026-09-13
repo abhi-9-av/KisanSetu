@@ -84,13 +84,34 @@ While existing state platforms (such as *e-Uparjan*) handle basic digital regist
 
 ### 1. Backend Server (FastAPI)
 ```bash
-cd backend
 python -m venv venv
 source venv/bin/activate  # On Windows: venv\Scripts\activate
-pip install -r requirements.txt
-uvicorn main:app --reload --port 8000
+pip install -r backend/requirements.txt
+uvicorn backend.main:app --reload --port 8000
 ```
 *API documentation will be available at `http://localhost:8000/docs`.*
+
+For a PostgreSQL-backed deployment, use the checked-in Alembic migrations:
+
+```bash
+cd backend
+alembic -c alembic.ini upgrade head
+```
+
+`DATABASE_URL` accepts `sqlite:///...` for development and
+`postgresql+psycopg://user:password@host:5432/kisansetu` for staging/production.
+Non-development environments reject SQLite and require strong,
+non-default `AUTH_SECRET_KEY` and `OPERATOR_ACCESS_TOKEN` values. Copy
+`backend/.env.example`; never commit secrets.
+
+Run the complete local stack with Docker:
+
+```bash
+docker compose up --build
+```
+
+The API is then available at `http://localhost:8000`; stop it with
+`docker compose down`.
 
 ### 2. Mandi Operator Dashboard (Streamlit)
 ```bash

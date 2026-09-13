@@ -1,6 +1,7 @@
 # KisanSetu backend
 
-This is the local FastAPI and SQLite foundation for the KisanSetu app.
+This is the FastAPI backend for KisanSetu. SQLite remains the default for local
+development; PostgreSQL is required for staging and production.
 
 ## Setup
 
@@ -12,6 +13,7 @@ python3 -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
+alembic -c alembic.ini upgrade head
 python -m backend.seed
 uvicorn backend.main:app --reload --port 8000
 ```
@@ -74,3 +76,33 @@ and full slots return HTTP 409.
 
 The database is created as `kisansetu.db` in the working directory. It is
 ignored by Git and can be recreated at any time from the seed command.
+
+## Migrations
+
+Run these commands from `backend/` (with the virtual environment active):
+
+```bash
+alembic -c alembic.ini upgrade head
+alembic -c alembic.ini current
+alembic -c alembic.ini downgrade base
+```
+
+Set `DATABASE_URL` to a PostgreSQL URL such as
+`postgresql+psycopg://user:password@host:5432/kisansetu` before running
+migrations against PostgreSQL. Never place production credentials in source
+control. `ENVIRONMENT=staging` or `production` rejects SQLite and requires
+strong `AUTH_SECRET_KEY` and `OPERATOR_ACCESS_TOKEN` values.
+
+## Docker Compose
+
+From the repository root, start PostgreSQL and the API (the API runs migrations
+before serving traffic):
+
+```bash
+docker compose up --build
+curl http://localhost:8000/health
+docker compose down
+```
+
+The Compose credentials are explicitly local-only examples. Replace all
+credentials and set `ENVIRONMENT=production` for a real deployment.
