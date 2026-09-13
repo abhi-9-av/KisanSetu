@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+import json
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
@@ -11,7 +12,9 @@ from sqlalchemy.orm import Session
 from .config import get_settings
 from .database import get_db, init_db
 from . import auth
-from .models import Booking, Centre, Farmer, QueueRecord, TokenStatus
+from .models import (AcceptedStatus, Booking, Centre, Complaint, Escalation, Farmer,
+                     Notification, Payment, PaymentStatus, Procurement, QueueRecord,
+                     TokenStatus)
 from .schemas import (
     CentreResponse,
     FarmerProfile,
@@ -26,6 +29,8 @@ from .schemas import (
     CheckInResponse,
     QueueStatusResponse,
     SlotAvailability,
+    ComplaintCreate, ComplaintResponse, NotificationResponse, PaymentResponse,
+    PaymentTransition, WeighmentUpdate, EscalationResponse,
 )
 
 settings = get_settings()
@@ -168,8 +173,14 @@ def _booking_response(booking: Booking) -> dict:
             "queue_info": {"vehicles_ahead": queue.vehicles_ahead if queue else 0,
                            "estimated_wait_min": queue.estimated_wait_min if queue else 0,
                            "last_updated": queue.last_updated if queue else booking.created_at},
-            "procurement": {"weighment_kg": None, "accepted_status": "PENDING", "completed_at": None},
-            "payment": {"status": "NOT_STARTED", "amount_inr": None, "initiated_at": None, "paid_at": None, "days_stalled": 0}}
+            "procurement": {"weighment_kg": booking.procurement.weighment_kg if booking.procurement else None,
+                            "accepted_status": booking.procurement.accepted_status if booking.procurement else "PENDING",
+                            "completed_at": booking.procurement.completed_at if booking.procurement else None},
+            "payment": {"status": booking.payment.status if booking.payment else "NOT_STARTED",
+                        "amount_inr": booking.payment.amount_inr if booking.payment else None,
+                        "initiated_at": booking.payment.initiated_at if booking.payment else None,
+                        "paid_at": booking.payment.paid_at if booking.payment else None,
+                        "days_stalled": booking.payment.days_stalled if booking.payment else 0}}
 
 
 @app.post("/api/v1/bookings/create", response_model=BookingSummary, status_code=201)
@@ -246,6 +257,163 @@ def queue_status(booking_id: str, farmer: Farmer = Depends(current_farmer), db: 
     return QueueStatusResponse(booking_id=booking.id, token_number=booking.token_number,
         token_status=booking.token_status, vehicles_ahead=booking.queue.vehicles_ahead,
         estimated_wait_min=booking.queue.estimated_wait_min, last_updated=booking.queue.last_updated)
+
+
+def _payment_response(payment: Payment) -> dict:
+    return {"payment_id": payment.id, "booking_id": payment.booking_id, "status": payment.status,
+            "amount_inr": payment.amount_inr, "initiated_at": payment.initiated_at,
+            "paid_at": payment.paid_at, "days_stalled": payment.days_stalled}
+
+
+@app.get("/api/v1/farmer/payments", response_model=list[PaymentResponse])
+def farmer_payments(farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    rows = db.scalars(select(Payment).join(Booking).where(Booking.farmer_id == farmer.id)).all()
+    return [_payment_response(row) for row in rows]
+
+
+@app.get("/api/v1/farmer/payments/{booking_id}", response_model=PaymentResponse)
+def farmer_payment(booking_id: str, farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    payment = db.scalar(select(Payment).join(Booking).where(Payment.booking_id == booking_id,
+                                                              Booking.farmer_id == farmer.id))
+    if not payment:
+        raise HTTPException(status_code=404, detail="Payment not found")
+    return _payment_response(payment)
+
+
+@app.get("/api/v1/farmer/bookings/{booking_id}/receipt")
+def digital_receipt(booking_id: str, farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    booking = db.scalar(select(Booking).where(Booking.id == booking_id, Booking.farmer_id == farmer.id))
+    if not booking or not booking.procurement or booking.procurement.accepted_status != AcceptedStatus.APPROVED:
+        raise HTTPException(status_code=404, detail="Verified weighment receipt not available")
+    return {"receipt_id": f"RCT-{booking.id}", "booking_id": booking.id, "farmer_id": farmer.id,
+            "centre_id": booking.centre_id, "crop_type": booking.crop_type,
+            "weighment_kg": booking.procurement.weighment_kg,
+            "accepted_status": booking.procurement.accepted_status,
+            "completed_at": booking.procurement.completed_at, "issued_at": datetime.utcnow()}
+
+
+@app.post("/api/v1/operator/bookings/{booking_id}/weighment", response_model=dict)
+def operator_weighment(booking_id: str, payload: WeighmentUpdate, db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    if booking.token_status not in (TokenStatus.WAITING, TokenStatus.PROCESSING):
+        raise HTTPException(status_code=409, detail=f"Cannot weigh from {booking.token_status}")
+    if payload.accepted_status == "APPROVED" and booking.token_status == TokenStatus.WAITING:
+        booking.token_status = TokenStatus.PROCESSING
+    procurement = booking.procurement or Procurement(id=f"PR-{uuid4().hex[:10]}", booking_id=booking.id)
+    procurement.weighment_kg = payload.weighment_kg
+    procurement.accepted_status = AcceptedStatus(payload.accepted_status)
+    if procurement.accepted_status in (AcceptedStatus.APPROVED, AcceptedStatus.REJECTED):
+        procurement.completed_at = datetime.utcnow()
+    db.add(procurement)
+    db.commit()
+    return {"booking_id": booking.id, "weighment_kg": procurement.weighment_kg,
+            "accepted_status": procurement.accepted_status, "completed_at": procurement.completed_at}
+
+
+_PAYMENT_TRANSITIONS = {
+    PaymentStatus.NOT_STARTED: {PaymentStatus.PROCUREMENT_COMPLETED},
+    PaymentStatus.PROCUREMENT_COMPLETED: {PaymentStatus.PAYMENT_INITIATED},
+    PaymentStatus.PAYMENT_INITIATED: {PaymentStatus.PROCESSING},
+    PaymentStatus.PROCESSING: {PaymentStatus.PAID},
+    PaymentStatus.PAID: set(),
+}
+
+
+@app.patch("/api/v1/operator/bookings/{booking_id}/payment", response_model=PaymentResponse)
+def operator_payment_status(booking_id: str, payload: PaymentTransition, db: Session = Depends(get_db)):
+    booking = db.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+    payment = booking.payment or Payment(id=f"PAY-{uuid4().hex[:10]}", booking_id=booking.id,
+                                        status=PaymentStatus.NOT_STARTED)
+    target = PaymentStatus(payload.status)
+    if target != payment.status and target not in _PAYMENT_TRANSITIONS[payment.status]:
+        raise HTTPException(status_code=409, detail=f"Invalid payment transition {payment.status} -> {target}")
+    if target in (PaymentStatus.PROCUREMENT_COMPLETED, PaymentStatus.PAYMENT_INITIATED) and (
+        not booking.procurement or booking.procurement.accepted_status != AcceptedStatus.APPROVED):
+        raise HTTPException(status_code=409, detail="Approved weighment is required")
+    payment.status = target
+    if payload.amount_inr is not None:
+        payment.amount_inr = payload.amount_inr
+    if target == PaymentStatus.PAYMENT_INITIATED and not payment.initiated_at:
+        payment.initiated_at = datetime.utcnow()
+    if target == PaymentStatus.PAID:
+        payment.paid_at = datetime.utcnow()
+        payment.days_stalled = 0
+    db.add(payment)
+    db.add(Notification(id=f"NTF-{uuid4().hex[:10]}", farmer_id=booking.farmer_id,
+                        title="Payment status updated",
+                        message=f"Your payment is now {target.value.replace('_', ' ').title()}.",
+                        kind="PAYMENT"))
+    db.commit()
+    db.refresh(payment)
+    return _payment_response(payment)
+
+
+@app.post("/api/v1/farmer/complaints", response_model=ComplaintResponse, status_code=201)
+def create_complaint(payload: ComplaintCreate, farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    if payload.booking_id and not db.scalar(select(Booking).where(Booking.id == payload.booking_id,
+                                                                    Booking.farmer_id == farmer.id)):
+        raise HTTPException(status_code=404, detail="Booking not found")
+    complaint = Complaint(id=f"CMP-{uuid4().hex[:10]}", farmer_id=farmer.id, **payload.model_dump())
+    db.add(complaint)
+    db.commit()
+    db.refresh(complaint)
+    return complaint
+
+
+@app.get("/api/v1/farmer/complaints", response_model=list[ComplaintResponse])
+def list_complaints(farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    return list(db.scalars(select(Complaint).where(Complaint.farmer_id == farmer.id)
+                           .order_by(Complaint.created_at.desc())).all())
+
+
+@app.get("/api/v1/farmer/notifications", response_model=list[NotificationResponse])
+def list_notifications(farmer: Farmer = Depends(current_farmer), db: Session = Depends(get_db)):
+    return list(db.scalars(select(Notification).where(Notification.farmer_id == farmer.id)
+                           .order_by(Notification.created_at.desc())).all())
+
+
+@app.patch("/api/v1/farmer/notifications/{notification_id}/read", response_model=NotificationResponse)
+def mark_notification_read(notification_id: str, farmer: Farmer = Depends(current_farmer),
+                            db: Session = Depends(get_db)):
+    notification = db.scalar(select(Notification).where(Notification.id == notification_id,
+                                                         Notification.farmer_id == farmer.id))
+    if not notification:
+        raise HTTPException(status_code=404, detail="Notification not found")
+    notification.read = True
+    db.commit()
+    db.refresh(notification)
+    return notification
+
+
+@app.post("/api/v1/operator/sentinel/payment-escalations", response_model=list[EscalationResponse])
+def scan_payment_escalations(db: Session = Depends(get_db)):
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    payments = db.scalars(select(Payment).where(Payment.status.in_(
+        [PaymentStatus.PAYMENT_INITIATED, PaymentStatus.PROCESSING]),
+        Payment.initiated_at.is_not(None), Payment.initiated_at < cutoff)).all()
+    result = []
+    for payment in payments:
+        payment.days_stalled = max(0, (datetime.utcnow() - payment.initiated_at).days)
+        existing = db.scalar(select(Escalation).where(Escalation.payment_id == payment.id,
+                                                        Escalation.resolved.is_(False)))
+        if existing:
+            continue
+        payload = {"payment_id": payment.id, "booking_id": payment.booking_id,
+                   "farmer_id": payment.booking.farmer_id, "status": payment.status,
+                   "amount_inr": payment.amount_inr, "days_stalled": payment.days_stalled,
+                   "destination": "CM_HELPLINE"}
+        escalation = Escalation(id=f"ESC-{uuid4().hex[:10]}", payment_id=payment.id,
+                                reason="Payment stalled for more than 7 days",
+                                payload=json.dumps(payload))
+        db.add(escalation)
+        result.append((escalation, payload))
+    db.commit()
+    return [{"escalation_id": e.id, "payment_id": e.payment_id, "booking_id": p["booking_id"],
+             "reason": e.reason, "payload": p, "created_at": e.created_at} for e, p in result]
 
 
 @app.post("/api/v1/operator/bookings/{booking_id}/check-in", response_model=CheckInResponse)

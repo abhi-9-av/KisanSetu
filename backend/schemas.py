@@ -110,3 +110,61 @@ class CheckInResponse(BaseModel):
     booking_id: str
     token_status: str
     queue_info: dict
+
+
+class WeighmentUpdate(BaseModel):
+    weighment_kg: float = Field(gt=0)
+    accepted_status: str = Field(pattern=r"^(PENDING|APPROVED|REJECTED)$")
+
+
+class PaymentTransition(BaseModel):
+    status: str = Field(pattern=r"^(NOT_STARTED|PROCUREMENT_COMPLETED|PAYMENT_INITIATED|PROCESSING|PAID)$")
+    amount_inr: Optional[float] = Field(default=None, ge=0)
+
+
+class PaymentResponse(BaseModel):
+    payment_id: str
+    booking_id: str
+    status: str
+    amount_inr: Optional[float]
+    initiated_at: Optional[datetime]
+    paid_at: Optional[datetime]
+    days_stalled: int
+
+
+class ComplaintCreate(BaseModel):
+    issue_type: str = Field(min_length=1, max_length=80)
+    details: Optional[str] = Field(default=None, max_length=4000)
+    booking_id: Optional[str] = None
+
+
+class ComplaintResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    farmer_id: str
+    booking_id: Optional[str]
+    issue_type: str
+    details: Optional[str]
+    status: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class NotificationResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: str
+    farmer_id: str
+    title: str
+    message: str
+    kind: str
+    read: bool
+    created_at: datetime
+
+
+class EscalationResponse(BaseModel):
+    escalation_id: str
+    payment_id: str
+    booking_id: str
+    reason: str
+    payload: dict
+    created_at: datetime

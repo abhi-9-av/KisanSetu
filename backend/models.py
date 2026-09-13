@@ -2,7 +2,7 @@ from datetime import date, datetime
 from enum import StrEnum
 from typing import Optional
 
-from sqlalchemy import Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
+from sqlalchemy import Boolean, Date, DateTime, Float, ForeignKey, Integer, Numeric, String, Text
 from sqlalchemy import Enum as SqlEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -142,3 +142,26 @@ class Complaint(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     booking: Mapped[Optional[Booking]] = relationship(back_populates="complaints")
+
+
+class Notification(Base):
+    __tablename__ = "notifications"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    farmer_id: Mapped[str] = mapped_column(ForeignKey("farmers.id"), index=True)
+    title: Mapped[str] = mapped_column(String(160))
+    message: Mapped[str] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(40), default="GENERAL")
+    read: Mapped[bool] = mapped_column(Boolean, default=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class Escalation(Base):
+    __tablename__ = "escalations"
+
+    id: Mapped[str] = mapped_column(String(32), primary_key=True)
+    payment_id: Mapped[str] = mapped_column(ForeignKey("payments.id"), index=True)
+    reason: Mapped[str] = mapped_column(String(200))
+    payload: Mapped[str] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    resolved: Mapped[bool] = mapped_column(Boolean, default=False)

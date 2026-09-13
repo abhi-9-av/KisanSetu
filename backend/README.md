@@ -52,6 +52,13 @@ With the server running, the repository smoke check can be run with
 - `POST /api/v1/bookings/{id}/cancel` (Bearer)
 - `GET /api/v1/queue/status/{id}` (Bearer)
 - `POST /api/v1/operator/bookings/{id}/check-in` (operator transition BOOKED → ARRIVED → WAITING)
+- `POST /api/v1/operator/bookings/{id}/weighment` (weighment and accepted status)
+- `PATCH /api/v1/operator/bookings/{id}/payment` (strict payment state transition)
+- `GET /api/v1/farmer/payments`, `GET /api/v1/farmer/payments/{booking_id}` (Bearer)
+- `GET /api/v1/farmer/bookings/{booking_id}/receipt` (Bearer; verified digital receipt)
+- `POST /api/v1/farmer/complaints`, `GET /api/v1/farmer/complaints` (Bearer)
+- `GET /api/v1/farmer/notifications`, `PATCH /api/v1/farmer/notifications/{id}/read` (Bearer)
+- `POST /api/v1/operator/sentinel/payment-escalations` (development scan; records stalls over seven days)
 
 Booking slots are derived as 30-minute windows from 08:00–16:00. Daily centre
 capacity is distributed across those windows; duplicate active farmer bookings
