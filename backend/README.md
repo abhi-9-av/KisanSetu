@@ -31,8 +31,16 @@ curl -X POST http://localhost:8000/api/v1/auth/verify-otp \
   -H 'content-type: application/json' -d '{"phone":"9876543210","otp":"1234"}'
 ```
 
-The returned bearer token is an in-memory, short-lived local development
-session. It is not a production token implementation.
+The returned bearer token is a signed, short-lived token. Set a unique
+`AUTH_SECRET_KEY` (32+ random characters) outside development; tokens are
+stateless and can be verified by multiple instances sharing that key.
+
+OTP request and verification endpoints have a lightweight process-local rate
+limit. This is suitable for a local deployment only; use shared storage (such
+as Redis) or an API gateway rate limiter when running multiple workers or
+instances. In non-development environments, configure a unique
+`OPERATOR_ACCESS_TOKEN` (16+ random characters); the development default is
+rejected at startup. Never commit these secrets or place them in client code.
 
 With the server running, the repository smoke check can be run with
 `python backend/validate_api.py`.

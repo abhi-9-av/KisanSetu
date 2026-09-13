@@ -1,9 +1,10 @@
 from contextlib import asynccontextmanager
+import hmac
 import json
 from datetime import date, datetime, timedelta
 from uuid import uuid4
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Query, status
+from fastapi import Depends, FastAPI, Header, HTTPException, Query, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
@@ -81,16 +82,19 @@ def current_farmer(
 def development_operator_access(
     access_token: str | None = Header(default=None, alias="X-Operator-Access"),
 ) -> bool:
-    """Local-only operator gate; this is deliberately not production authentication."""
-    if settings.environment != "development":
-        raise HTTPException(status_code=403, detail="Operator dashboard is disabled outside development")
-    if access_token != settings.operator_access_token:
+    """Validate the configured operator credential without timing leaks."""
+    if not access_token or not hmac.compare_digest(
+        access_token, settings.operator_access_token
+    ):
         raise HTTPException(status_code=401, detail="Valid local operator access is required")
     return True
 
 
 @app.post("/api/v1/auth/request-otp", response_model=OtpRequestResponse)
-def request_otp(payload: OtpRequest) -> OtpRequestResponse:
+def request_otp(payload: OtpRequest, request: Request) -> OtpRequestResponse:
+    key = f"{request.client.host if request.client else 'unknown'}:{payload.phone}"
+    if not auth.check_rate_limit("request", key):
+        raise HTTPException(status_code=429, detail="Too many OTP requests; try again later")
     auth.issue_otp(payload.phone)
     return OtpRequestResponse(
         phone=payload.phone,
@@ -101,7 +105,10 @@ def request_otp(payload: OtpRequest) -> OtpRequestResponse:
 
 
 @app.post("/api/v1/auth/verify-otp", response_model=OtpVerifyResponse)
-def verify_otp(payload: OtpVerifyRequest, db: Session = Depends(get_db)) -> OtpVerifyResponse:
+def verify_otp(payload: OtpVerifyRequest, request: Request, db: Session = Depends(get_db)) -> OtpVerifyResponse:
+    key = f"{request.client.host if request.client else 'unknown'}:{payload.phone}"
+    if not auth.check_rate_limit("verify", key):
+        raise HTTPException(status_code=429, detail="Too many OTP attempts; try again later")
     if not auth.verify_otp(payload.phone, payload.otp):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid or expired OTP")
     farmer = db.scalar(select(Farmer).where(Farmer.phone == payload.phone))
