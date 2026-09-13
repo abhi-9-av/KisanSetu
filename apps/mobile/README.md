@@ -34,3 +34,8 @@ EXPO_PUBLIC_API_URL=http://192.168.1.20:8000 npx expo start
 The development login uses OTP `1234`; it is an in-memory development flow and
 does not send SMS. If the backend is unavailable, the existing demo UI remains
 available in the source as a fallback for design work.
+
+After authentication, the Slots screen requests live availability and submits
+bookings with the bearer session token. Network failures retain the existing
+local demo booking flow. The typed client also exposes farmer booking list,
+detail, cancellation, and queue status methods.

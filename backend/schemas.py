@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import date, datetime
 from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -53,3 +53,60 @@ class CentreResponse(BaseModel):
     max_daily_capacity: int
     avg_processing_mins_per_vehicle: int
     created_at: datetime
+
+
+class SlotAvailability(BaseModel):
+    date: date
+    start_time: str
+    end_time: str
+    capacity: int
+    booked: int
+    available: int
+
+
+class AvailabilityResponse(BaseModel):
+    centre_id: str
+    date: date
+    slots: list[SlotAvailability]
+
+
+class BookingCreate(BaseModel):
+    centre_id: str
+    crop_type: str = Field(min_length=1, max_length=80)
+    quantity_quintals: float = Field(gt=0)
+    slot_date: date
+    slot_start_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+    slot_end_time: str = Field(pattern=r"^\d{2}:\d{2}$")
+
+
+class BookingSummary(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    booking_id: str
+    farmer_id: str
+    farmer_name: str
+    phone: str
+    centre_id: str
+    centre_name: str
+    crop_type: str
+    quantity_quintals: float
+    slot: dict
+    token: dict
+    queue_info: dict
+    procurement: dict
+    payment: dict
+
+
+class QueueStatusResponse(BaseModel):
+    booking_id: str
+    token_number: str
+    token_status: str
+    vehicles_ahead: int
+    estimated_wait_min: int
+    last_updated: datetime
+
+
+class CheckInResponse(BaseModel):
+    booking_id: str
+    token_status: str
+    queue_info: dict

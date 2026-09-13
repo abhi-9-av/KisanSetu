@@ -46,6 +46,16 @@ With the server running, the repository smoke check can be run with
 - `GET /api/v1/farmer/profile` (Bearer session required)
 - `PATCH /api/v1/farmer/profile` (Bearer session required)
 - `GET /api/v1/centres?search=indore`
+- `GET /api/v1/slots/availability?centre_id=C-07&slot_date=YYYY-MM-DD`
+- `POST /api/v1/bookings/create` (Bearer; creates a capacity-checked booking and token)
+- `GET /api/v1/bookings`, `GET /api/v1/bookings/{id}` (Bearer)
+- `POST /api/v1/bookings/{id}/cancel` (Bearer)
+- `GET /api/v1/queue/status/{id}` (Bearer)
+- `POST /api/v1/operator/bookings/{id}/check-in` (operator transition BOOKED → ARRIVED → WAITING)
+
+Booking slots are derived as 30-minute windows from 08:00–16:00. Daily centre
+capacity is distributed across those windows; duplicate active farmer bookings
+and full slots return HTTP 409.
 
 The database is created as `kisansetu.db` in the working directory. It is
 ignored by Git and can be recreated at any time from the seed command.
