@@ -15,11 +15,11 @@ While existing state platforms (such as *e-Uparjan*) handle basic digital regist
 
 ## ⚡ 5 Core Power Features
 
-1. **📅 Capacity-Aware Slot Booking:** Recommends optimized booking windows based on live center loads, travel distances, and historical congestion to prevent mandi overcrowding.
-2. **🎟️ Live Queue Tracking & Dynamic ETA:** Replaces physical waiting hours with a digital token screen that updates remaining vehicles and wait times in real time.
-3. **⚖️ On-Site Weight Transparency:** Sends instant digital receipts to the farmer's device as soon as crop weight is verified at the gate, preventing fraud.
-4. **💸 End-to-End Payment Tracking:** Tracks the complete lifecycle of crop payouts through verified state milestones (`NOT_STARTED` → `PROCUREMENT_COMPLETED` → `PAYMENT_INITIATED` → `PROCESSING` → `PAID`).
-5. **🚨 Automated CM Helpline Escalation:** An asynchronous sentinel daemon automatically packages audit logs and triggers an official grievance to the state **CM Helpline** if a payment remains stalled for over 7 days.
+1. ** Capacity-Aware Slot Booking:** Recommends optimized booking windows based on live center loads, travel distances, and historical congestion to prevent mandi overcrowding.
+2. ** Live Queue Tracking & Dynamic ETA:** Replaces physical waiting hours with a digital token screen that updates remaining vehicles and wait times in real time.
+3. ** On-Site Weight Transparency:** Sends instant digital receipts to the farmer's device as soon as crop weight is verified at the gate, preventing fraud.
+4. ** End-to-End Payment Tracking:** Tracks the complete lifecycle of crop payouts through verified state milestones (`NOT_STARTED` → `PROCUREMENT_COMPLETED` → `PAYMENT_INITIATED` → `PROCESSING` → `PAID`).
+5. ** Automated CM Helpline Escalation:** An asynchronous sentinel daemon automatically packages audit logs and triggers an official grievance to the state **CM Helpline** if a payment remains stalled for over 7 days.
 
 ---
 
